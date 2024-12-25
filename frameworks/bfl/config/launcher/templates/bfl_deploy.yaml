@@ -222,7 +222,7 @@ spec:
         - name: userspace-dir
           mountPath: /userspace
         - name: appcache-dir
-          mountPath: /appdata
+          mountPath: /appcache
         - name: dbdata-dir
           mountPath: /dbdata
         command:
@@ -237,8 +237,10 @@ spec:
           mkdir -p /userspace/Home/Code && \
           mkdir -p /userspace/Data && \
           chown -R 1000:1000 /userspace/Home && \
-          chown -R 1000:1000 /userspace/Data && \
-          chown -R 1000:1000 /appdata 
+          [[ ! -f /userspace/.chowned ]] && \
+          ( chown -R 1000:1000 /userspace/Data && \
+          chown -R 1000:1000 /appcache && \
+          touch /userspace/.chowned ) || true
 
       containers:
       - name: api
