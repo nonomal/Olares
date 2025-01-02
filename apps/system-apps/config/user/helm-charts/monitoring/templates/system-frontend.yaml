@@ -112,7 +112,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: files1-service
+  name: files-fe-service
   namespace: user-space-{{ .Values.bfl.username }}
 spec:
   selector:
@@ -123,6 +123,7 @@ spec:
       name: files
       port: 80
       targetPort: 87
+
 ---
 apiVersion: sys.bytetrade.io/v1alpha1
 kind: ProviderRegistry
@@ -133,7 +134,7 @@ spec:
   dataType: files
   deployment: files
   description: files provider
-  endpoint: files-service.{{ .Release.Namespace }}
+  endpoint: files-fe-service.{{ .Release.Namespace }}
   group: service.files
   kind: provider
   namespace: {{ .Release.Namespace }}
@@ -151,34 +152,7 @@ spec:
   version: v1
 status:
   state: active
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: zinc-files-secrets
-  namespace: user-system-{{ .Values.bfl.username }}
-type: Opaque
-data:
-  password: {{ $password }}
-  redis_password: {{ $redis_password }}
-  pg_password: {{ $pg_password }}
----
-apiVersion: apr.bytetrade.io/v1alpha1
-kind: MiddlewareRequest
-metadata:
-  name: zinc-files-redis
-  namespace: user-system-{{ .Values.bfl.username }}
-spec:
-  app: files
-  appNamespace: user-space-{{ .Values.bfl.username }}
-  middleware: redis
-  redis:
-    password:
-      valueFrom:
-        secretKeyRef:
-          key: redis_password
-          name: zinc-files-secrets
-    namespace: zinc-files
+
 ---
 
 apiVersion: apps/v1

@@ -32,6 +32,36 @@
 apiVersion: v1
 kind: Secret
 metadata:
+  name: zinc-files-secrets
+  namespace: user-system-{{ .Values.bfl.username }}
+type: Opaque
+data:
+  password: {{ $password }}
+  redis_password: {{ $redis_password }}
+  pg_password: {{ $pg_password }}
+  
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: zinc-files-redis
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  app: files
+  appNamespace: user-space-{{ .Values.bfl.username }}
+  middleware: redis
+  redis:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: redis_password
+          name: zinc-files-secrets
+    namespace: zinc-files
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
   name: cloud-drive-integration-secrets
   namespace: user-system-{{ .Values.bfl.username }}
 type: Opaque
