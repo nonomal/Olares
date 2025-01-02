@@ -114,6 +114,8 @@ kind: Deployment
 metadata:
   name: files-deployment
   namespace: {{ .Release.Namespace }}
+  labels:
+    applications.app.bytetrade.io/author: bytetrade.io
 spec:
   replicas: 1
   selector:
