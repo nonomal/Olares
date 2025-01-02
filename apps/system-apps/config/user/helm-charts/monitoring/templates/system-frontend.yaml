@@ -1336,7 +1336,7 @@ data:
     }
 
   files.conf: |-
-      server {
+    server {
         listen 87;
         gzip off;
         gzip_disable "msie6";
