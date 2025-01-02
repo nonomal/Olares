@@ -450,7 +450,7 @@ spec:
             # value: none / nvidia / nvshare / virtaitech
             - name: GPU
               value: {{ .Values.gpu }}
-      volumes:           
+      volumes:
         - name: userspace-dir
           hostPath:
             type: Directory
@@ -1348,15 +1348,15 @@ data:
         client_max_body_size 2000M;
         root /www/files;
         # normal routes
-	    # serve given url and default to index.html if not found
-	    # e.g. /, /user and /foo/bar will return index.html
-	    location / {
-		    try_files $uri $uri/index.html /index.html;
-		    add_header Cache-Control "private,no-cache";
-		    add_header Last-Modified "Oct, 03 Jan 2022 13:46:41 GMT";
+        # serve given url and default to index.html if not found
+        # e.g. /, /user and /foo/bar will return index.html
+        location / {
+            try_files $uri $uri/index.html /index.html;
+            add_header Cache-Control "private,no-cache";
+            add_header Last-Modified "Oct, 03 Jan 2022 13:46:41 GMT";
             expires 0;
-	    }
-	    location /api/resources/AppData {
+        }
+        location /api/resources/AppData {
             proxy_pass http://files-service.os-system:80;
             # rewrite ^/server(.*)$ $1 break;
             # Add original-request-related headers
@@ -1403,7 +1403,7 @@ data:
             proxy_send_timeout 60s;
         }
 
-	    location /api {
+        location /api {
             proxy_pass http://files-service.os-system:80;
             # rewrite ^/server(.*)$ $1 break;
 
@@ -1514,7 +1514,7 @@ data:
         location /api/raw/Home/ {
             expires 30d;
             add_header Cache-Control "public, max-age=2592000";
-	        proxy_pass http://files-service.os-system:80;
+            proxy_pass http://files-service.os-system:80;
             # rewrite ^/server(.*)$ $1 break;
 
             # Add original-request-related headers
@@ -1535,12 +1535,12 @@ data:
         # Set cache for static resources
         location ~ ^/(assets|js|css|fonts|img)/.*.(js|css|png|jpg|svg|woff|woff2)$
         {
-      	    add_header Cache-Control "public, max-age=2678400";
+            add_header Cache-Control "public, max-age=2678400";
         }
 
         location ~ ^/resources/Home/Pictures/(.*.(png|jpg|svg|gif|jpeg))$
         {
-      	    alias /data/Pictures/$1;
-	        autoindex off; 
+            alias /data/Pictures/$1;
+            autoindex off; 
         }
     }
