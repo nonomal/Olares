@@ -1335,7 +1335,7 @@ data:
         }
     }
 
-    files.conf: |-
+  files.conf: |-
       server {
         listen 87;
         gzip off;
