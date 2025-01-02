@@ -112,8 +112,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: files-service
-  namespace: user-system-{{ .Values.bfl.username }}
+  name: files1-service
+  namespace: user-space-{{ .Values.bfl.username }}
 spec:
   selector:
     app: files
@@ -197,7 +197,7 @@ metadata:
     applications.app.bytetrade.io/title: '{"dashboard": "Dashboard","control-hub":"Control Hub","profile":"Profile","wise":"Wise","headscale":"Headscale","settings":"Settings","files":"Files"}'
     applications.app.bytetrade.io/version: '{"dashboard": "0.0.1","control-hub":"0.0.1","profile":"0.0.1","wise":"0.0.1","headscale":"0.0.1","settings":"0.0.1","files":"0.0.1"}'
     applications.app.bytetrade.io/policies: '{"dashboard":{"policies":[{"entranceName":"dashboard","uriRegex":"/js/script.js", "level":"public"},{"entranceName":"dashboard","uriRegex":"/js/api/send", "level":"public"}]}}'
-    applications.app.bytetrade.io/entrances: '{"dashboard":[{"name":"dashboard","host":"dashboard-service","port":80,"title":"Dashboard","windowPushState":true}],"control-hub":[{"name":"control-hub","host":"control-hub-service","port":80,"title":"Control Hub","windowPushState":true}],"profile":[{"name":"profile", "host":"profile-service", "port":80,"title":"Profile","windowPushState":true}],"wise":[{"name":"wise", "host":"wise-svc", "port":80,"title":"Wise","windowPushState":true}],"headscale":[{"name":"headscale", "host":"headscale-svc", "port":80,"title":"Headscale","invisible": true}],"settings":[{"name":"settings", "host":"settings-service", "port":80,"title":"Settings"}],"files":[{"name":"files", "host":"files-service", "port":80,"title":"Files","windowPushState":true}]}'
+    applications.app.bytetrade.io/entrances: '{"dashboard":[{"name":"dashboard","host":"dashboard-service","port":80,"title":"Dashboard","windowPushState":true}],"control-hub":[{"name":"control-hub","host":"control-hub-service","port":80,"title":"Control Hub","windowPushState":true}],"profile":[{"name":"profile", "host":"profile-service", "port":80,"title":"Profile","windowPushState":true}],"wise":[{"name":"wise", "host":"wise-svc", "port":80,"title":"Wise","windowPushState":true}],"headscale":[{"name":"headscale", "host":"headscale-svc", "port":80,"title":"Headscale","invisible": true}],"settings":[{"name":"settings", "host":"settings-service", "port":80,"title":"Settings"}],"files":[{"name":"files", "host":"files1-service", "port":80,"title":"Files","windowPushState":true}]}'
 spec:
   replicas: 1
   selector:
