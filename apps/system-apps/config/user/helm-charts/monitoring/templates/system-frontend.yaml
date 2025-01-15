@@ -771,6 +771,14 @@ data:
         expires 0;
       }
 
+      location /ws {
+        proxy_pass http://127.0.0.1:40010;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+      }
+
       location /bfl {
         add_header 'Access-Control-Allow-Headers' 'x-api-nonce,x-api-ts,x-api-ver,x-api-source';
         proxy_pass http://bfl;
@@ -854,14 +862,6 @@ data:
         add_header Cache-Control "private,no-cache";
         add_header Last-Modified "Oct, 03 Jan 2022 13:46:41 GMT";
         expires 0;
-      }
-
-      location /ws {
-        proxy_pass http://127.0.0.1:40010;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
       }
 
       location /bfl {
