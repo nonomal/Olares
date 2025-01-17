@@ -210,7 +210,11 @@ spec:
             - name: NATS_SUBJECT
               value: terminus.os-system.files-notify
             - name: RESERVED_SPACE
+<<<<<<< HEAD
               value: '100000'
+=======
+              value: '10000'
+>>>>>>> c4f1805171af186d37e67d2d1255bfae4eedb593
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -234,7 +238,7 @@ spec:
             - name: UPLOAD_LIMITED_SIZE
               value: '49946775344'
             - name: RESERVED_SPACE
-              value: '100000'
+              value: '10000'
           volumeMounts:
             - name: fb-data
               mountPath: /appdata
