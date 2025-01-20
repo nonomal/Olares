@@ -45,12 +45,12 @@ if (-Not $downloadCdnUrlFromEnv -eq "") {
   $downloadUrl = $downloadCdnUrlFromEnv
 }
 
-$CLI_PROGRAM_PATH = "{0}\AppData\Local\Microsoft\WindowsApps\" -f $currentPath
+$CLI_PROGRAM_PATH = "{0}\" -f $currentPath
 if (-Not (Test-Path $CLI_PROGRAM_PATH)) {
   New-Item -Path $CLI_PROGRAM_PATH -ItemType Directory
 }
 
-$CLI_VERSION = "0.1.102"
+$CLI_VERSION = "0.1.106"
 $CLI_FILE = "olares-cli-v{0}_windows_{1}.tar.gz" -f $CLI_VERSION, $arch
 $CLI_URL = "{0}/{1}" -f $downloadUrl, $CLI_FILE
 $CLI_PATH = "{0}{1}" -f $CLI_PROGRAM_PATH, $CLI_FILE
