@@ -55,7 +55,6 @@ spec:
 #    applications.app.bytetrade.io/title: Seafile
 #    applications.app.bytetrade.io/version: '0.0.1'
 #    applications.app.bytetrade.io/entrances: '[{"name":"seafile-ui", "host":"seafile-ui", "port":80,"title":"Seafile","invisible": true}]'
-#{{ end }}
 #
 #spec:
 #  replicas: 1
