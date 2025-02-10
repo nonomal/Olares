@@ -22,6 +22,10 @@ cat $1|while read image; do
 
             md5sum $name.tar.gz > $checksum
             backup_file=$(cat $checksum)
+            if [ x"$backup_file"  == x""  ]; then
+                echo  "invalid checksum"
+                exit 1
+            fi
 
             aws s3 cp $name.tar.gz s3://terminus-os-install/$path$name.tar.gz --acl=public-read
             aws s3 cp $name.tar.gz s3://terminus-os-install/backup/$path$backup_file --acl=public-read
@@ -51,6 +55,10 @@ cat $1|while read image; do
 
             md5sum $name.tar.gz > $checksum
             backup_file=$(cat $checksum)
+            if [ x"$backup_file"  == x""  ]; then
+                echo  "invalid checksum"
+                exit 1
+            fi
 
             aws s3 cp $name.tar.gz s3://terminus-os-install/$path$name.tar.gz --acl=public-read
             aws s3 cp $name.tar.gz s3://terminus-os-install/backup/$path$backup_file --acl=public-read
