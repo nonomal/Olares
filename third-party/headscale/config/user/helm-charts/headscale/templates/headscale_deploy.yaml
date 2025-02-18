@@ -367,7 +367,8 @@ data:
   acl.json: |
     {
       "acls":[
-        { "action": "accept", "src": ["*"], "proto": "tcp", "dst": ["*:443"] }
+        { "action": "accept", "src": ["*"], "proto": "tcp", "dst": ["*:443"] },
+        { "action": "accept", "src": ["*"], "proto": "tcp", "dst": ["*:18088"] }
       ],
       "autoApprovers": {
         "routes": {
