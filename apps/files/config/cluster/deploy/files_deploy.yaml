@@ -78,7 +78,7 @@ spec:
             - containerPort: 8080
           env:
             - name: FILES_SERVER_TAG
-              value: 'beclab/files-server:v0.2.57'
+              value: 'beclab/files-server:v0.2.60'
             - name: NAMESPACE
               valueFrom:
                 fieldRef:
@@ -114,7 +114,7 @@ spec:
 {{ end }}
 
         - name: files
-          image: beclab/files-server:v0.2.57
+          image: beclab/files-server:v0.2.60
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: true
@@ -218,6 +218,8 @@ spec:
               value: '1000'
             - name: OLARES_VERSION
               value: '1.11'
+            - name: FILE_CACHE_DIR
+              value: '/data/file_cache'
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -234,7 +236,7 @@ spec:
             - /filebrowser
             - --noauth
         - name: uploader
-          image: beclab/upload:v1.0.10
+          image: beclab/upload:v1.0.12
           env:
             - name: UPLOAD_FILE_TYPE
               value: '*'
@@ -394,7 +396,7 @@ spec:
           name: check-nats
       containers:
         - name: files
-          image: beclab/files-server:v0.2.57
+          image: beclab/files-server:v0.2.60
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -747,7 +749,7 @@ data:
 
             client_body_timeout 600s;
             client_max_body_size 4000M;
-            proxy_request_buffering off;
+            proxy_request_buffering on;
             keepalive_timeout 750s;
             proxy_read_timeout 600s;
             proxy_send_timeout 600s;
