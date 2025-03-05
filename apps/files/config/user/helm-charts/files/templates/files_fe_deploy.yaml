@@ -333,6 +333,8 @@ spec:
         ports: 
         - containerPort: 8181
         volumeMounts:
+        - name: data-dir
+          mountPath: /data
         - name: upload-data
           mountPath: /data/Home
         - name: upload-appdata
@@ -354,6 +356,8 @@ spec:
         ports: 
         - containerPort: 8181
         volumeMounts:
+        - name: data-dir
+          mountPath: /data
         - name: upload-data
           mountPath: /data/Home
         - name: upload-appdata
@@ -422,6 +426,10 @@ spec:
               fieldPath: status.podIP
 
       volumes:
+      - name: data-dir
+        hostPath:
+          path: {{ .Values.rootPath }}/rootfs/userspace
+          type: Directory
       - name: watch-dir
         hostPath:
           type: Directory
