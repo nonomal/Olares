@@ -556,6 +556,13 @@ function upgrade_terminus(){
         for appdir in "${BASE_DIR}/wizard/config/apps"/*/; do
           if [ -d "$appdir" ]; then
             releasename=$(basename "$appdir")
+
+            # ignore wizard
+            # FIXME: unintitialized user's wizard should be upgrade
+            if [ x"${releasename}" == x"wizard" ]; then 
+                continue
+            fi
+
             if [ "$user" != "$admin_user" ];then
                 releasename=${releasename}-${user}
             fi
@@ -564,6 +571,23 @@ function upgrade_terminus(){
         done
 
     done
+
+    # upgrade app service in the last. keep app service online longer
+    local terminus_is_cloud_version=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.terminus-is-cloud-version}'")
+    local backup_cluster_bucket=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-cluster-bucket}'")
+    local backup_key_prefix=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-key-prefix}'")
+    local backup_secret=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-secret}'")
+    local backup_server_data=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-server-data}'")
+
+    ensure_success $sh_c "${HELM} upgrade -i system ${BASE_DIR}/wizard/config/system -n os-system --reuse-values \
+        --set kubesphere.redis_password=${ks_redis_pwd} --set backup.bucket=\"${backup_cluster_bucket}\" \
+        --set backup.key_prefix=\"${backup_key_prefix}\" --set backup.is_cloud_version=\"${terminus_is_cloud_version}\" \
+        --set backup.sync_secret=\"${backup_secret}\""
+
+    echo 'Waiting for App-Service ...'
+    sleep 2 # wait for controller reconiling
+    check_appservice
+    echo
 
     echo 'Waiting for Vault ...'
     check_vault ${admin_user}
@@ -580,22 +604,6 @@ function upgrade_terminus(){
 
     echo 'Starting Desktop ...'
     check_desktop ${admin_user}
-    echo
-
-    # upgrade app service in the last. keep app service online longer
-    local terminus_is_cloud_version=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.terminus-is-cloud-version}'")
-    local backup_cluster_bucket=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-cluster-bucket}'")
-    local backup_key_prefix=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-key-prefix}'")
-    local backup_secret=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-secret}'")
-    local backup_server_data=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-server-data}'")
-
-    ensure_success $sh_c "${HELM} upgrade -i system ${BASE_DIR}/wizard/config/system -n os-system --reuse-values \
-        --set kubesphere.redis_password=${ks_redis_pwd} --set backup.bucket=\"${backup_cluster_bucket}\" \
-        --set backup.key_prefix=\"${backup_key_prefix}\" --set backup.is_cloud_version=\"${terminus_is_cloud_version}\" \
-        --set backup.sync_secret=\"${backup_secret}\""
-
-    echo 'Waiting for App-Service ...'
-    check_appservice
     echo
 
 }
