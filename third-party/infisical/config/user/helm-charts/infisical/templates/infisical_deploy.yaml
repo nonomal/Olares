@@ -286,6 +286,8 @@ spec:
         - name: proxy
           containerPort: 8080
         env:
+        - name: INFISICAL_URL
+          value: http://localhost:4000
         - name: OWNER
           value: '{{ .Values.bfl.username }}'
         - name: PG_USER
