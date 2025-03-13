@@ -38,7 +38,7 @@ spec:
   selector:
     matchLabels:
       app: files
-template:
+  template:
     metadata:
       labels:
         app: files
