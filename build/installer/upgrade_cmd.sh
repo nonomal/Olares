@@ -557,6 +557,9 @@ function upgrade_terminus(){
         --set backup.key_prefix=\"${backup_key_prefix}\" --set backup.is_cloud_version=\"${terminus_is_cloud_version}\" \
         --set backup.sync_secret=\"${backup_secret}\""
 
+    local market_provider=$($sh_c "${KUBECTL} get deploy -n user-space-${admin_user}  market-deployment -o jsonpath='{.spec.template.spec.containers[1].env[?(@.name==\"MARKET_PROVIDER\")].value }'")
+    $sh_c "${KUBECTL} set env sts/app-service -n os-system MARKET_PROVIDER=${market_provider}"
+
     echo 'Waiting for App-Service ...'
     sleep 10 # wait for controller reconiling
     echo
@@ -592,6 +595,11 @@ function upgrade_terminus(){
             ensure_success $sh_c "${HELM} upgrade -i ${releasename} ${appdir} -n user-space-${user} --reuse-values --set kubesphere.redis_password=${ks_redis_pwd} -f ${BASE_DIR}/wizard/config/apps/values.yaml"
           fi
         done
+
+        # update user market env
+        if [ "$user" != "$admin_user" ];then
+            $sh_c "${KUBECTL} set env deployment/market-deployment -n user-space-${user} MARKET_PROVIDER=${market_provider}"
+        fi
 
     done
 
