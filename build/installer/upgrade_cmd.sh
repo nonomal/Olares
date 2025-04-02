@@ -519,12 +519,16 @@ function upgrade_terminus(){
     # upgrade_jfs ${users[@]}
     local selfhosted=$($sh_c "${KUBECTL} get terminus terminus -o jsonpath='{.spec.settings.selfhosted}'")
     local domainname=$($sh_c "${KUBECTL} get terminus terminus -o jsonpath='{.spec.settings.domainName}'")
+    local current_version=$($sh_c "${KUBECTL} get terminus terminus -o jsonpath='{.spec.version}'")
     sed -i "s/#__DOMAIN_NAME__/${domainname}/" ${BASE_DIR}/wizard/config/settings/templates/terminus_cr.yaml
     sed -i "s/#__SELFHOSTED__/${selfhosted}/" ${BASE_DIR}/wizard/config/settings/templates/terminus_cr.yaml
 
     echo "Upgrading olares system components ... "
     gen_settings_values ${admin_user}
     ensure_success $sh_c "${HELM} upgrade -i settings ${BASE_DIR}/wizard/config/settings -n default --reuse-values"
+
+    local new_version=$($sh_c "${KUBECTL} get terminus terminus -o jsonpath='{.spec.version}'")
+    $sh_c "${KUBECTL} patch terminus terminus --type=merge  --patch='{\"spec\": {\"version\":\"${current_version}\"}}'"
 
     # patch
     ensure_success $sh_c "${KUBECTL} apply -f ${BASE_DIR}/deploy/patch-globalrole-workspace-manager.yaml"
@@ -540,7 +544,26 @@ function upgrade_terminus(){
     done
 
     local ks_redis_pwd=$($sh_c "${KUBECTL} get secret -n kubesphere-system redis-secret -o jsonpath='{.data.auth}' |base64 -d")
+
+    # upgrade app service 
+    local terminus_is_cloud_version=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.terminus-is-cloud-version}'")
+    local backup_cluster_bucket=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-cluster-bucket}'")
+    local backup_key_prefix=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-key-prefix}'")
+    local backup_secret=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-secret}'")
+    local backup_server_data=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-server-data}'")
+
+    ensure_success $sh_c "${HELM} upgrade -i system ${BASE_DIR}/wizard/config/system -n os-system --reuse-values \
+        --set kubesphere.redis_password=${ks_redis_pwd} --set backup.bucket=\"${backup_cluster_bucket}\" \
+        --set backup.key_prefix=\"${backup_key_prefix}\" --set backup.is_cloud_version=\"${terminus_is_cloud_version}\" \
+        --set backup.sync_secret=\"${backup_secret}\""
+
+    echo 'Waiting for App-Service ...'
+    sleep 10 # wait for controller reconiling
+    echo
+
+
     for user in ${users[@]}; do
+        check_appservice
         echo "Upgrading user ${user} ... "
         gen_bfl_values ${user}
 
@@ -572,23 +595,6 @@ function upgrade_terminus(){
 
     done
 
-    # upgrade app service in the last. keep app service online longer
-    local terminus_is_cloud_version=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.terminus-is-cloud-version}'")
-    local backup_cluster_bucket=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-cluster-bucket}'")
-    local backup_key_prefix=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-key-prefix}'")
-    local backup_secret=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-secret}'")
-    local backup_server_data=$($sh_c "${KUBECTL} get cm -n os-system backup-config -o jsonpath='{.data.backup-server-data}'")
-
-    ensure_success $sh_c "${HELM} upgrade -i system ${BASE_DIR}/wizard/config/system -n os-system --reuse-values \
-        --set kubesphere.redis_password=${ks_redis_pwd} --set backup.bucket=\"${backup_cluster_bucket}\" \
-        --set backup.key_prefix=\"${backup_key_prefix}\" --set backup.is_cloud_version=\"${terminus_is_cloud_version}\" \
-        --set backup.sync_secret=\"${backup_secret}\""
-
-    echo 'Waiting for App-Service ...'
-    sleep 2 # wait for controller reconiling
-    check_appservice
-    echo
-
     echo 'Waiting for Vault ...'
     check_vault ${admin_user}
     echo
@@ -606,6 +612,7 @@ function upgrade_terminus(){
     check_desktop ${admin_user}
     echo
 
+    $sh_c "${KUBECTL} patch terminus terminus --type=merge  --patch='{\"spec\": {\"version\":\"${new_version}\"}}'"
 }
 
 
