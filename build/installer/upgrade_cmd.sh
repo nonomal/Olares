@@ -558,7 +558,9 @@ function upgrade_terminus(){
         --set backup.sync_secret=\"${backup_secret}\""
 
     local market_provider=$($sh_c "${KUBECTL} get deploy -n user-space-${admin_user}  market-deployment -o jsonpath='{.spec.template.spec.containers[1].env[?(@.name==\"MARKET_PROVIDER\")].value }'")
-    $sh_c "${KUBECTL} set env sts/app-service -n os-system MARKET_PROVIDER=${market_provider}"
+    if [ "$market_provider" != "" ]; then
+        $sh_c "${KUBECTL} set env sts/app-service -n os-system MARKET_PROVIDER=${market_provider}"
+    fi
 
     echo 'Waiting for App-Service ...'
     sleep 10 # wait for controller reconiling
@@ -597,7 +599,7 @@ function upgrade_terminus(){
         done
 
         # update user market env
-        if [ "$user" != "$admin_user" ];then
+        if [[ "$user" != "$admin_user" && "$market_provider" != "" ]];then
             $sh_c "${KUBECTL} set env deployment/market-deployment -n user-space-${user} MARKET_PROVIDER=${market_provider}"
         fi
 
