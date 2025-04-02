@@ -263,7 +263,7 @@ function get_appservice_pod(){
 }
 
 function get_appservice_status(){
-    $sh_c "${KUBECTL} get pod  -n os-system -l 'tier=app-service' -o jsonpath='{.items[*].status.phase}'"
+    $sh_c "${KUBECTL} get pods app-service-0 -n os-system --no-headers|awk '{print \$3}'"
 }
 
 function get_desktop_status(){
@@ -279,7 +279,7 @@ function get_vault_status(){
 
 function get_bfl_status(){
     local username=$1
-    $sh_c "${KUBECTL} get pod  -n user-space-${username} -l 'tier=bfl' -o jsonpath='{.items[*].status.phase}'"
+    $sh_c "${KUBECTL} get pods bfl-0 -n user-space-${username} --no-headers|awk '{print \$3}'"
 }
 
 function get_fileserver_status(){
@@ -525,9 +525,14 @@ function upgrade_terminus(){
 
     echo "Upgrading olares system components ... "
     gen_settings_values ${admin_user}
-    ensure_success $sh_c "${HELM} upgrade -i settings ${BASE_DIR}/wizard/config/settings -n default --reuse-values"
+    ensure_success $sh_c "${HELM} upgrade -i settings ${BASE_DIR}/wizard/config/settings -n default --reuse-values --atomic"
 
     local new_version=$($sh_c "${KUBECTL} get terminus terminus -o jsonpath='{.spec.version}'")
+    if [ "$new_version" == "$current_version" ]; then
+        echo "get new version error, try to get from file"
+        new_version=$(grep version ${BASE_DIR}/wizard/config/settings/templates/terminus_cr.yaml|awk '{print $2}')
+        echo "find new version from file: ${new_version}"        
+    fi
     $sh_c "${KUBECTL} patch terminus terminus --type=merge  --patch='{\"spec\": {\"version\":\"${current_version}\"}}'"
 
     # patch
@@ -563,7 +568,7 @@ function upgrade_terminus(){
     fi
 
     echo 'Waiting for App-Service ...'
-    sleep 10 # wait for controller reconiling
+    sleep 2 # wait for controller reconiling
     echo
 
 
