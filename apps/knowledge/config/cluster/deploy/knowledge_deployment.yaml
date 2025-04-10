@@ -321,7 +321,7 @@ spec:
       - name: cache-dir
         hostPath:
           path: {{ .Values.rootPath }}/userdata/Cache/rss
-          type: Directory
+          type: DirectoryOrCreate
       - name: terminus-sidecar-config
         configMap:
           name: sidecar-ws-configs
