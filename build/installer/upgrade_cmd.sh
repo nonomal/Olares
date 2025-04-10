@@ -175,7 +175,7 @@ function gen_bfl_values(){
     echo '
 bfl:
   nodeport: '${user_bfl_port}'
-  username: '${username}'
+  username: "'${username}'"
 
   userspace_rand16: '${userspace_rand16}'
   userspace_pv: '${pvc_path[2]}'
@@ -263,7 +263,16 @@ function get_appservice_pod(){
 }
 
 function get_appservice_status(){
-    $sh_c "${KUBECTL} get pod  -n os-system -l 'tier=app-service' -o jsonpath='{.items[*].status.phase}'"
+    local s=$($sh_c "${KUBECTL} get pods app-service-0 -n os-system --no-headers|awk '{print \$3}'")
+    if [[ $s == "Running" ]]; then
+        local ip=$($sh_c "${KUBECTL} get svc -n os-system app-service --no-headers|awk '{print \$3}'")
+        curl -SsIk https://${ip}:8433 > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "initializing"
+        fi
+    fi
+
+    echo "$s"
 }
 
 function get_desktop_status(){
@@ -279,7 +288,7 @@ function get_vault_status(){
 
 function get_bfl_status(){
     local username=$1
-    $sh_c "${KUBECTL} get pod  -n user-space-${username} -l 'tier=bfl' -o jsonpath='{.items[*].status.phase}'"
+    $sh_c "${KUBECTL} get pods bfl-0 -n user-space-${username} --no-headers|awk '{print \$3}'"
 }
 
 function get_fileserver_status(){
@@ -525,14 +534,33 @@ function upgrade_terminus(){
 
     echo "Upgrading olares system components ... "
     gen_settings_values ${admin_user}
-    ensure_success $sh_c "${HELM} upgrade -i settings ${BASE_DIR}/wizard/config/settings -n default --reuse-values"
+    ensure_success $sh_c "${HELM} upgrade -i settings ${BASE_DIR}/wizard/config/settings -n default --reuse-values --atomic"
 
     local new_version=$($sh_c "${KUBECTL} get terminus terminus -o jsonpath='{.spec.version}'")
+    if [ "$new_version" == "$current_version" ]; then
+        echo "get new version error, try to get from file"
+        new_version=$(grep version ${BASE_DIR}/wizard/config/settings/templates/terminus_cr.yaml|awk '{print $2}')
+        echo "find new version from file: ${new_version}"        
+    fi
     $sh_c "${KUBECTL} patch terminus terminus --type=merge  --patch='{\"spec\": {\"version\":\"${current_version}\"}}'"
 
     # patch
     ensure_success $sh_c "${KUBECTL} apply -f ${BASE_DIR}/deploy/patch-globalrole-workspace-manager.yaml"
     ensure_success $sh_c "$KUBECTL apply -f ${BASE_DIR}/deploy/patch-notification-manager.yaml"
+
+    echo "Upgrading admin ${admin_user}'s launcher ... "
+    gen_bfl_values ${admin_user}
+
+    # gen bfl app key and secret
+    bfl_ks=($(get_app_key_secret ${admin_user} "bfl"))
+
+    # install launcher , and init pv
+    ensure_success $sh_c "${HELM} upgrade -i launcher-${admin_user} ${BASE_DIR}/wizard/config/launcher -n user-space-${admin_user} --set bfl.appKey=${bfl_ks[0]} --set bfl.appSecret=${bfl_ks[1]} -f ${BASE_DIR}/wizard/config/launcher/values.yaml --reuse-values"
+
+    echo 'Starting BFL ...'
+    check_bfl ${admin_user}
+    echo
+
 
     # clear apps values.yaml
     cat /dev/null > ${BASE_DIR}/wizard/config/apps/values.yaml
@@ -563,7 +591,7 @@ function upgrade_terminus(){
     fi
 
     echo 'Waiting for App-Service ...'
-    sleep 10 # wait for controller reconiling
+    sleep 2 # wait for controller reconiling
     echo
 
 
@@ -572,11 +600,13 @@ function upgrade_terminus(){
         echo "Upgrading user ${user} ... "
         gen_bfl_values ${user}
 
-        # gen bfl app key and secret
-        bfl_ks=($(get_app_key_secret ${user} "bfl"))
+        if [ "$user" != "$admin_user" ];then
+            # gen bfl app key and secret
+            bfl_ks=($(get_app_key_secret ${user} "bfl"))
 
-        # install launcher , and init pv
-        ensure_success $sh_c "${HELM} upgrade -i launcher-${user} ${BASE_DIR}/wizard/config/launcher -n user-space-${user} --set bfl.appKey=${bfl_ks[0]} --set bfl.appSecret=${bfl_ks[1]} -f ${BASE_DIR}/wizard/config/launcher/values.yaml --reuse-values"
+            # install launcher , and init pv
+            ensure_success $sh_c "${HELM} upgrade -i launcher-${user} ${BASE_DIR}/wizard/config/launcher -n user-space-${user} --set bfl.appKey=${bfl_ks[0]} --set bfl.appSecret=${bfl_ks[1]} -f ${BASE_DIR}/wizard/config/launcher/values.yaml --reuse-values"
+        fi
 
         gen_app_values ${user}
         close_apps ${user}
@@ -607,10 +637,6 @@ function upgrade_terminus(){
 
     echo 'Waiting for Vault ...'
     check_vault ${admin_user}
-    echo
-
-    echo 'Starting BFL ...'
-    check_bfl ${admin_user}
     echo
 
     echo 'Starting files ...'
