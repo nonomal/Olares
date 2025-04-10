@@ -80,7 +80,7 @@ data:
           name: {{ tpl .Values.artifactRepository.s3.secretKeySecret.name . }}
         {{- end }}
         bucket: {{ tpl (.Values.artifactRepository.s3.bucket | default "") . }}
-        endpoint: tapr-s3-svc.os-system:4568
+        endpoint: workflow-archivelog-s3.user-system-{{ .Values.global.bfl.username }}:4568
         insecure: {{ .Values.artifactRepository.s3.insecure }}
         {{- if .Values.artifactRepository.s3.keyFormat }}
         keyFormat: {{ .Values.artifactRepository.s3.keyFormat | quote }}

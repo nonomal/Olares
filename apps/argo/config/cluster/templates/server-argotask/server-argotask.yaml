@@ -77,19 +77,20 @@ spec:
           name: rss-secrets
     namespace: knowledge
 
+
 ---
-    
 apiVersion: v1
 kind: Service
 metadata:
-  name: workflow-archivelog-s3
+  name: argoworkflows-svc
   namespace: os-system
 spec:
   type: ClusterIP
   selector:
-    app: systemserver
+    app: argo-server
   ports:
-    - protocol: TCP
-      name: fakes3
-      port: 4568
-      targetPort: 4568
+    - name: http
+      port: 2746
+      protocol: TCP
+      targetPort: 2746
+    
