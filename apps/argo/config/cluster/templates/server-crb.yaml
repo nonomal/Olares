@@ -2,39 +2,25 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: os-system:argoworkflows
-  labels:
-    app.kubernetes.io/component=server
-    app.kubernetes.io/instance=argo
-    app.kubernetes.io/managed-by=Helm
-    app.kubernetes.io/name=argoworkflows-server
-    app.kubernetes.io/part-of=argo-workflows
-    helm.sh/chart=argoworkflows-0.35.0
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: argoworkflows
 subjects:
-- kind: ServiceAccount
-  name: argoworkflows
-  namespace: os-system
+  - kind: ServiceAccount
+    name: argoworkflows
+    namespace: os-system
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: os-system:argoworkflows-cluster-template
-  labels:
-    app.kubernetes.io/component=server
-    app.kubernetes.io/instance=argo
-    app.kubernetes.io/managed-by=Helm
-    app.kubernetes.io/name=argoworkflows-server
-    app.kubernetes.io/part-of=argo-workflows
-    helm.sh/chart=argoworkflows-0.35.0
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: argoworkflows-cluster-template
 subjects:
-- kind: ServiceAccount
-  name: argoworkflows
-  namespace: os-system
+  - kind: ServiceAccount
+    name: argoworkflows
+    namespace: os-system
