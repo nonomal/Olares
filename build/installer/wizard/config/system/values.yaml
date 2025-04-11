@@ -9,3 +9,5 @@ backup:
   sync_secret: "${BACKUP_SECRET}"
   server:
     data: "${backup_server_data}"
+argo:
+  keyFormat: "{{workflow.namespace}}/{{workflow.name}}/{{pod.name}}"

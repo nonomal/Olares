@@ -18,7 +18,7 @@ data:
         bucket: mongo-backup
         endpoint: workflow-archivelog-s3.user-system-mmchong2021:4568
         insecure: true
-        keyFormat: "{{workflow.namespace}}/{{workflow.name}}/{{pod.name}}"
+        keyFormat: {{ .Values.argo.keyFormat | quote }}
     persistence:
       connectionPool:
         maxIdleConns: 5
