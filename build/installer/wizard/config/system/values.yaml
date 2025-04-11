@@ -9,4 +9,3 @@ backup:
     data: "${backup_server_data}"
 argo:
   keyFormat: "{{workflow.namespace}}/{{workflow.name}}/{{pod.name}}"
-  
