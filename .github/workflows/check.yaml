@@ -40,7 +40,7 @@ jobs:
       - name: Run chart-testing (list-changed)
         id: list-changed
         run: |
-          changed=$(ct list-changed --chart-dirs build/installer/wizard/config --target-branch ${{ github.event.repository.default_branch }})
+          changed=$(ct list-changed --chart-dirs build,apps,frameworks,libs,third-party --target-branch ${{ github.event.repository.default_branch }})
           if [[ -n "$changed" ]]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
