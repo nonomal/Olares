@@ -39,7 +39,7 @@ metadata:
   namespace: os-system
 type: Opaque
 data:
-  pg_password: {{ $password }}
+  pg_password: {{ $pg_password }}
   redis_password: {{ $redis_password }}
 ---  
 

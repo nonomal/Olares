@@ -42,7 +42,7 @@ metadata:
   namespace: os-system
 type: Opaque
 data:
-  pg_password: {{ $password }}
+  pg_password: {{ $pg_password }}
   redis_password: {{ $redis_password }}
 ---  
 apiVersion: apr.bytetrade.io/v1alpha1
