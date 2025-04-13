@@ -1,21 +1,16 @@
-{{- $namespace := printf "%s" "os-system" -}}
-{{- $download_secret := (lookup "v1" "Secret" $namespace "rss-secrets") -}}
+{{- $download_secret := (lookup "v1" "Secret" "os-system" "rss-secrets") -}}
 
 {{- $pg_password := "" -}}
 {{ if $download_secret -}}
 {{ $pg_password = (index $download_secret "data" "pg_password") }}
-{{ else -}}
-{{ $pg_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
 {{- $redis_password := "" -}}
 {{ if $download_secret -}}
 {{ $redis_password = (index $download_secret "data" "redis_password") }}
-{{ else -}}
-{{ $redis_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
-{{- $download_nats_secret := (lookup "v1" "Secret" $namespace "download-secrets") -}}
+{{- $download_nats_secret := (lookup "v1" "Secret" "os-system" "download-secrets") -}}
 {{- $nat_password := "" -}}
 {{ if $download_nats_secret -}}
 {{ $nat_password = (index $download_nats_secret "data" "nat_password") }}

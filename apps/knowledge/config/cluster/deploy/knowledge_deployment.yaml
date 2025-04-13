@@ -1,11 +1,8 @@
-{{- $namespace := printf "%s" "os-system" -}}
-{{- $knowledge_secret := (lookup "v1" "Secret" $namespace "rss-secrets") -}}
+{{- $knowledge_secret := (lookup "v1" "Secret" "os-system" "rss-secrets") -}}
 
 {{- $redis_password := "" -}}
 {{ if $knowledge_secret -}}
 {{ $redis_password = (index $knowledge_secret "data" "redis_password") }}
-{{ else -}}
-{{ $redis_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
 {{- $redis_password_data := "" -}}
@@ -15,11 +12,9 @@
 {{- $pg_password := "" -}}
 {{ if $knowledge_secret -}}
 {{ $pg_password = (index $knowledge_secret "data" "pg_password") }}
-{{ else -}}
-{{ $pg_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
-{{- $knowledge_nats_secret := (lookup "v1" "Secret" $namespace "knowledge-secrets") -}}
+{{- $knowledge_nats_secret := (lookup "v1" "Secret" "os-system" "knowledge-secrets") -}}
 {{- $nat_password := "" -}}
 {{ if $knowledge_nats_secret -}}
 {{ $nat_password = (index $knowledge_nats_secret "data" "nat_password") }}
@@ -167,7 +162,7 @@ spec:
         - name: REDIS_PASSWORD
           value: {{ $redis_password_data }}
         - name: REDIS_ADDR
-          value: redis-cluster-proxy.os-system:6379
+          value: redis-cluster-proxy.os-system
         - name: PG_USERNAME
           value: knowledge_os_system
         - name: PG_PASSWORD
@@ -215,7 +210,7 @@ spec:
         - name: REDIS_PASSWORD
           value: {{ $redis_password_data }}
         - name: REDIS_ADDR
-          value: redis-cluster-proxy.os-system:6379
+          value: redis-cluster-proxy.os-system
         - name: RSS_HUB_URL
           value: 'http://rss-server.os-system:1200/'
         - name: WE_CHAT_REFRESH_FEED_URL
@@ -272,7 +267,7 @@ spec:
         - name: PG_PORT
           value: "5432"
         - name: TERMINUS_RECOMMEND_REDIS_ADDR
-          value: redis-cluster-proxy.os-system:6379
+          value: redis-cluster-proxy.os-system
         - name: TERMINUS_RECOMMEND_REDIS_PASSOWRD
           value: {{ $redis_password_data }}
         volumeMounts:
