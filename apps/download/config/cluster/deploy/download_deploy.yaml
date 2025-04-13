@@ -1,13 +1,17 @@
-{{- $download_secret := (lookup "v1" "Secret" "os-system" "rss-secrets") -}}
+{{- $share_secret := (lookup "v1" "Secret" "os-system" "knowledge_share_secrets") -}}
 
 {{- $pg_password := "" -}}
-{{ if $download_secret -}}
-{{ $pg_password = (index $download_secret "data" "pg_password") }}
+{{ if $share_secret -}}
+{{ $pg_password = (index $share_secret "data" "pg_password") }}
+{{ else -}}
+{{ $pg_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
 {{- $redis_password := "" -}}
-{{ if $download_secret -}}
-{{ $redis_password = (index $download_secret "data" "redis_password") }}
+{{ if $share_secret -}}
+{{ $redis_password = (index $share_secret "data" "redis_password") }}
+{{ else -}}
+{{ $redis_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
 {{- $download_nats_secret := (lookup "v1" "Secret" "os-system" "download-secrets") -}}
@@ -26,10 +30,19 @@ metadata:
   namespace: os-system
 type: Opaque
 data:
-  pg_password: {{ $pg_password }}
-  redis_password: {{ $redis_password }}
   nat_password: {{ $nat_password }}
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: knowledge_share_secrets
+  namespace: os-system
+type: Opaque
+data:
+  pg_password: {{ $password }}
+  redis_password: {{ $redis_password }}
+---  
+
 apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
 metadata:
@@ -45,7 +58,7 @@ spec:
       valueFrom:
         secretKeyRef:
           key: pg_password
-          name: download-secrets
+          name: knowledge_share_secrets
     databases:
     - name: knowledge
 ---

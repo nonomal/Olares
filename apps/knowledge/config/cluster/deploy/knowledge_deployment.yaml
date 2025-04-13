@@ -1,8 +1,10 @@
-{{- $knowledge_secret := (lookup "v1" "Secret" "os-system" "rss-secrets") -}}
+{{- $share_secret := (lookup "v1" "Secret" "os-system" "knowledge_share_secrets") -}}
 
 {{- $redis_password := "" -}}
-{{ if $knowledge_secret -}}
-{{ $redis_password = (index $knowledge_secret "data" "redis_password") }}
+{{ if $share_secret -}}
+{{ $redis_password = (index $share_secret "data" "redis_password") }}
+{{ else -}}
+{{ $redis_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
 {{- $redis_password_data := "" -}}
@@ -10,8 +12,10 @@
 
 
 {{- $pg_password := "" -}}
-{{ if $knowledge_secret -}}
-{{ $pg_password = (index $knowledge_secret "data" "pg_password") }}
+{{ if $share_secret -}}
+{{ $pg_password = (index $share_secret "data" "pg_password") }}
+{{ else -}}
+{{ $pg_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
 {{- $knowledge_nats_secret := (lookup "v1" "Secret" "os-system" "knowledge-secrets") -}}
@@ -29,9 +33,18 @@ metadata:
   namespace: os-system
 type: Opaque
 data:
-  pg_password: {{ $pg_password }}
   nat_password: {{ $nat_password }}
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: knowledge_share_secrets
+  namespace: os-system
+type: Opaque
+data:
+  pg_password: {{ $password }}
+  redis_password: {{ $redis_password }}
+---  
 apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
 metadata:
@@ -47,12 +60,29 @@ spec:
       valueFrom:
         secretKeyRef:
           key: pg_password
-          name: knowledge-secrets
+          name: knowledge_share_secrets
     databases:
     - name: knowledge
       extensions:
       - pg_trgm
       - btree_gin
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: knowledge-redis
+  namespace: os-system
+spec:
+  app: rss
+  appNamespace: os-system
+  middleware: redis
+  redis:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: redis_password
+          name: knowledge_share_secrets
+    namespace: knowledge
 ---
 apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
