@@ -1,4 +1,4 @@
-{{- $share_secret := (lookup "v1" "Secret" "os-system" "knowledge_share_secrets") -}}
+{{- $share_secret := (lookup "v1" "Secret" "os-system" "knowledge-share-secrets") -}}
 
 {{- $redis_password := "" -}}
 {{ if $share_secret -}}
@@ -35,16 +35,20 @@ type: Opaque
 data:
   nat_password: {{ $nat_password }}
 ---
+
+{{ if not $share_secret -}}
 apiVersion: v1
 kind: Secret
 metadata:
-  name: knowledge_share_secrets
+  name: knowledge-share-secrets
   namespace: os-system
 type: Opaque
 data:
   pg_password: {{ $pg_password }}
   redis_password: {{ $redis_password }}
 ---  
+{{ end }} 
+
 apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
 metadata:
@@ -60,7 +64,7 @@ spec:
       valueFrom:
         secretKeyRef:
           key: pg_password
-          name: knowledge_share_secrets
+          name: knowledge-share-secrets
     databases:
     - name: knowledge
       extensions:
@@ -81,7 +85,7 @@ spec:
       valueFrom:
         secretKeyRef:
           key: redis_password
-          name: knowledge_share_secrets
+          name: knowledge-share-secrets
     namespace: knowledge
 ---
 apiVersion: apr.bytetrade.io/v1alpha1
