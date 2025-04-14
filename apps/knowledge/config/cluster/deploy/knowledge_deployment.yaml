@@ -42,7 +42,7 @@ metadata:
   name: knowledge-share-secrets
   namespace: os-system
   annotations:
-    "helm.sh/hook": "pre-install"
+    "helm.sh/hook": "pre-install,pre-upgrade"
     "helm.sh/hook-delete-policy": before-hook-creation
 type: Opaque
 data:
