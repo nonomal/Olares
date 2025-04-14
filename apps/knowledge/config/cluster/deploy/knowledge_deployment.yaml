@@ -36,18 +36,20 @@ data:
   nat_password: {{ $nat_password }}
 ---
 
-{{ if not $share_secret -}}
 apiVersion: v1
 kind: Secret
 metadata:
   name: knowledge-share-secrets
   namespace: os-system
+  annotations:
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": before-hook-creation
 type: Opaque
 data:
   pg_password: {{ $pg_password }}
   redis_password: {{ $redis_password }}
 ---  
-{{ end }} 
+
 
 apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
