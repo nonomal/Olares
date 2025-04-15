@@ -1,5 +1,3 @@
-
-
 {{ $charts_rootpath := printf "%s%s" .Values.rootPath "/rootfs/charts" }}
 {{ $usertmpl_rootpath := printf "%s%s" .Values.rootPath "/rootfs/usertemplate" }}
 {{ $charts_pv := "pv-charts" }}
