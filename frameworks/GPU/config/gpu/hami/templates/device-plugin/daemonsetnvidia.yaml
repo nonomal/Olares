@@ -112,7 +112,7 @@ spec:
             - name: NVIDIA_MIG_MONITOR_DEVICES
               value: all
             - name: HOOK_PATH
-              value: {{ .Values.global.gpuHookPath }}/vgpu
+              value: '{{ .Values.global.gpuHookPath }}/vgpu'
           resources:
           {{- toYaml .Values.devicePlugin.vgpuMonitor.resources | nindent 12 }}
           volumeMounts:

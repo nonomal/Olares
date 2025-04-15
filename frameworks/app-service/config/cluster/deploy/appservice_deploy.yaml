@@ -223,7 +223,7 @@ spec:
       volumes:
       - name: app-cache
         hostPath:
-          path: {{ .Values.rootPath }}/userdata/Cache
+          path: '{{ .Values.rootPath }}/userdata/Cache'
           type: DirectoryOrCreate
       - name: configtoml
         hostPath:

@@ -53,7 +53,7 @@ spec:
       - name: pgbackup-dir
         hostPath:
           type: DirectoryOrCreate
-          path: {{ $dbbackup_rootpath }}/pg_backup
+          path: '{{ $dbbackup_rootpath }}/pg_backup'
       initContainers:
       - name: init-dbspace
         image: busybox:1.28
