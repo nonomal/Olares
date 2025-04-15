@@ -45,11 +45,11 @@ spec:
       - name: dbdata-dir
         hostPath:
           type: DirectoryOrCreate
-          path: {{ $dbdata_pv_rootpath }}
+          path: '{{ $dbdata_pv_rootpath }}'
       - name: dbbackup-dir
         hostPath:
           type: DirectoryOrCreate
-          path: {{ $dbbackup_rootpath }}
+          path: '{{ $dbbackup_rootpath }}'
       - name: pgbackup-dir
         hostPath:
           type: DirectoryOrCreate

@@ -499,7 +499,7 @@ spec:
       - name: sync-data
         hostPath:
           type: DirectoryOrCreate
-          path: {{ $seafile_application_rootpath }}
+          path: '{{ $seafile_application_rootpath }}'
       - name: db-data
         hostPath:
           type: DirectoryOrCreate

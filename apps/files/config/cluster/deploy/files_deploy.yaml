@@ -330,7 +330,7 @@ spec:
 {{ if .Values.sharedlib }}        
         - name: shared-lib
           hostPath:
-            path: {{ .Values.sharedlib }}
+            path: "{{ .Values.sharedlib }}"
             type: Directory
 {{ end }}            
 

@@ -442,23 +442,23 @@ spec:
       - name: userspace-dir
         hostPath:
           type: Directory
-          path: {{ .Values.userspace.userData }}
+          path: '{{ .Values.userspace.userData }}'
       - name: userspace-app-dir
         hostPath:
           type: Directory
-          path: {{ .Values.userspace.appData }}
+          path: '{{ .Values.userspace.appData }}'
       - name: fb-data
         hostPath:
           type: DirectoryOrCreate
-          path: {{ .Values.userspace.appCache}}/files
+          path: '{{ .Values.userspace.appCache}}/files'
       - name: upload-data
         hostPath:
           type: Directory
-          path: {{ .Values.userspace.userData }}
+          path: '{{ .Values.userspace.userData }}'
       - name: upload-appdata
         hostPath:
           type: Directory
-          path: {{ .Values.userspace.appCache}}
+          path: '{{ .Values.userspace.appCache}}'
       - name: uploads-temp
         hostPath:
           type: DirectoryOrCreate
