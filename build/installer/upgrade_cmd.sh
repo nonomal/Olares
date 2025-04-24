@@ -594,6 +594,8 @@ function upgrade_terminus(){
     sleep 2 # wait for controller reconiling
     echo
 
+    # update kvrocks namespace
+    $sh_c "${KUBECTL} rollout restart deployment tapr-middleware -n os-system"
 
     for user in ${users[@]}; do
         check_appservice
