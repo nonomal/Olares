@@ -206,7 +206,7 @@ spec:
             value: "{{ $pg_password | b64dec }}"
           - name: PGDB
             value: user_space_{{ .Values.bfl.username }}_cloud_drive_integration
-      - name: files-frontend
+      - name: files-frontend-init
         image: beclab/files-frontend:v1.3.55
         imagePullPolicy: IfNotPresent
         volumeMounts:
