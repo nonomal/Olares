@@ -48,7 +48,9 @@ spec:
         value: http://jaeger-storage-instance-collector.os-system:4318
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
         value: http/protobuf
-
+    resource:
+      limits:
+        memory: 256Mi
 
 ---
 apiVersion: opentelemetry.io/v1alpha1
@@ -100,4 +102,7 @@ spec:
         value: http://jaeger-storage-instance-collector.os-system:4318
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
         value: http/protobuf
+    resource:
+      limits:
+        memory: 256Mi
 
