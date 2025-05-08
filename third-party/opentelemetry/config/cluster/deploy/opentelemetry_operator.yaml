@@ -957,30 +957,32 @@ spec:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
         value: http://jaeger-storage-instance-collector.os-system:4318
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
-        value: http/protobuf
+        value: http/json
   dotnet:
     env:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
         value: http://jaeger-storage-instance-collector.os-system:4318
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
-        value: http/protobuf
+        value: http/json
   nodejs:
     env:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
         value: http://jaeger-storage-instance-collector.os-system:4318
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
-        value: http/protobuf
+        value: http/json
   nginx:
     image: bytetrade/autoinstrumentation-apache-httpd:1.0.4
     env:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
-        value: https://jaeger-storage-instance-collector.os-system:4317
+        value: http://jaeger-storage-instance-collector.os-system:4318
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: http/json
   go:
     env:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
         value: http://jaeger-storage-instance-collector.os-system:4318
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
-        value: http/protobuf
+        value: http/json
     resource:
       limits:
         memory: 256Mi
