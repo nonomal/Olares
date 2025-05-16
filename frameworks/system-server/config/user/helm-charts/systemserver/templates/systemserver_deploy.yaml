@@ -51,7 +51,7 @@ spec:
       priorityClassName: "system-cluster-critical"
       containers:
       - name: system-server
-        image: beclab/system-server:0.1.21
+        image: beclab/system-server:0.1.22
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
