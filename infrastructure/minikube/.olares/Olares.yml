@@ -1,0 +1,11 @@
+target: prebuilt
+output:
+  containers:
+    - 
+      name: gcr.io/k8s-minikube/storage-provisioner:v5
+     
+
+
+
+
+

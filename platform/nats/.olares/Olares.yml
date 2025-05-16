@@ -1,0 +1,5 @@
+target: prebuilt
+output:
+  containers:
+    - 
+      name: beclab/nats-server-config-reloader:v1

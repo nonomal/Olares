@@ -1,0 +1,10 @@
+target: prebuilt
+output:
+  containers:
+    - 
+      name: beclab/recommend-argotask:v0.0.12
+    
+
+
+    
+
