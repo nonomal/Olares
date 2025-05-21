@@ -7,10 +7,10 @@ function run_cmd(){
     bash -c "$@"
 }
 
-PACKAGE_MODULE=("frameworks" "libs" "apps" "third-party")
+PACKAGE_MODULE=("apps" "framework" "daemon" "infrastructure" "platform" "vendor")
 
-BUILD_TEMPLATE="build/installer"
-DIST=${DIST_PATH:-$BUILD_TEMPLATE}
+BUILD_TEMPLATE="build/base-package"
+DIST=${DIST_PATH:-".dist"}
 
 echo ${DIST}
 
@@ -34,10 +34,10 @@ mkdir -p ${DEPLOY_DIST}
 
 for mod in "${PACKAGE_MODULE[@]}";do
     echo "packaging ${mod} ..."
-    ls ${mod} | while read app; do
+    find ${mod} -type d -name .olares | while read app; do
 
         # package user app charts to install wizard
-        chart_path="${mod}/${app}/config/user/helm-charts"
+        chart_path="${app}/config/user/helm-charts"
         if [ -d ${chart_path} ]; then
             ls ${chart_path} | while read chart; do
                 run_cmd "cp -rf ${chart_path}/${chart} ${APP_DIST}"
@@ -45,7 +45,7 @@ for mod in "${PACKAGE_MODULE[@]}";do
         fi
 
         # package cluster crd to install wizard's system chart
-        crd_path="${mod}/${app}/config/cluster/crds"
+        crd_path="${app}/config/cluster/crds"
         if [ -d ${crd_path} ]; then
             ls ${crd_path} | while read crd; do
                 run_cmd "cp -rf ${crd_path}/${crd} ${CRD_DIST}"
@@ -53,7 +53,7 @@ for mod in "${PACKAGE_MODULE[@]}";do
         fi
 
         # package cluster deployments to install wizard's system chart
-        deploy_path="${mod}/${app}/config/cluster/deploy"
+        deploy_path="${app}/config/cluster/deploy"
         if [ -d ${deploy_path} ]; then
             ls ${deploy_path} | while read deploy; do
                 run_cmd "cp -rf ${deploy_path}/${deploy} ${DEPLOY_DIST}"
@@ -64,12 +64,9 @@ for mod in "${PACKAGE_MODULE[@]}";do
 done
 
 echo "packaging launcher ..."
-run_cmd "cp -rf frameworks/bfl/config/launcher ${DIST}/wizard/config/"
+run_cmd "cp -rf framework/bfl/.olares/config/launcher ${DIST}/wizard/config/"
 
 echo "packaging gpu ..."
-run_cmd "cp -rf frameworks/GPU/config/gpu ${DIST}/wizard/config/"
-
-# echo "packaging develper script ..."
-# run_cmd "cp -rf scripts/developer/* ${DIST}/."
+run_cmd "cp -rf framework/gpu/.olares/config/gpu ${DIST}/wizard/config/"
 
 echo "packaging completed"

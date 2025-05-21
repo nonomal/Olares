@@ -1,7 +1,0 @@
-target: prebuilt
-output:
-  containers:
-    - 
-      name: openebs/linux-utils:3.3.0
-    - 
-      name: openebs/provisioner-localpv:3.3.0
