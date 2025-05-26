@@ -196,7 +196,7 @@ metadata:
     applications.app.bytetrade.io/title: '{"dashboard": "Dashboard","control-hub":"Control Hub","profile":"Profile","wise":"Wise","headscale":"Headscale","settings":"Settings","studio":"Studio","files":"Files", "vault":"Vault","market":"Market"}'
     applications.app.bytetrade.io/version: '{"dashboard": "0.0.1","control-hub":"0.0.1","profile":"0.0.1","wise":"0.0.1","headscale":"0.0.1","settings":"0.0.1","studio":"0.0.1","files":"0.0.1","vault":"0.0.1","market":"0.0.1"}'
     applications.app.bytetrade.io/policies: '{"dashboard":{"policies":[{"entranceName":"dashboard","uriRegex":"/js/script.js", "level":"public"},{"entranceName":"dashboard","uriRegex":"/js/api/send", "level":"public"}]}}'
-    applications.app.bytetrade.io/entrances: '{"dashboard":[{"name":"dashboard","host":"dashboard-service","port":80,"title":"Dashboard","windowPushState":true}],"control-hub":[{"name":"control-hub","host":"control-hub-service","port":80,"title":"Control Hub","windowPushState":true}],"profile":[{"name":"profile", "host":"profile-service", "port":80,"title":"Profile","windowPushState":true}],"wise":[{"name":"wise", "host":"wise-svc", "port":80,"title":"Wise","windowPushState":true}],"headscale":[{"name":"headscale", "host":"headscale-svc", "port":80,"title":"Headscale","invisible": true}],"settings":[{"name":"settings", "host":"settings-service", "port":80,"title":"Settings"}],"studio":[{"name":"studio","host":"studio-svc","port":8080,"title":"Studio","openMethod":"window"}],"files":[{"name":"files", "host":"files-fe-service", "port":80,"title":"Files","windowPushState":true}],"vault":[{"name":"vault", "host":"vault-service", "port":80,"title":"Vault","windowPushState":true}],"market":'[{"name":"appstore", "host":"appstore-fe-service", "port":80,"title":"Market","windowPushState":true}]}'
+    applications.app.bytetrade.io/entrances: '{"dashboard":[{"name":"dashboard","host":"dashboard-service","port":80,"title":"Dashboard","windowPushState":true}],"control-hub":[{"name":"control-hub","host":"control-hub-service","port":80,"title":"Control Hub","windowPushState":true}],"profile":[{"name":"profile", "host":"profile-service", "port":80,"title":"Profile","windowPushState":true}],"wise":[{"name":"wise", "host":"wise-svc", "port":80,"title":"Wise","windowPushState":true}],"headscale":[{"name":"headscale", "host":"headscale-svc", "port":80,"title":"Headscale","invisible": true}],"settings":[{"name":"settings", "host":"settings-service", "port":80,"title":"Settings"}],"studio":[{"name":"studio","host":"studio-svc","port":8080,"title":"Studio","openMethod":"window"}],"files":[{"name":"files", "host":"files-fe-service", "port":80,"title":"Files","windowPushState":true}],"vault":[{"name":"vault", "host":"vault-service", "port":80,"title":"Vault","windowPushState":true}],"market":[{"name":"appstore", "host":"appstore-fe-service", "port":80,"title":"Market","windowPushState":true}]}'
 spec:
   replicas: 1
   selector:
@@ -2136,11 +2136,10 @@ data:
     upstream AppstoreBackendWebScoket {
       server appstore-svc:40010;
     }
-    
     server {
         listen 90;
         gzip off;
-	    gzip_types text/plain text/xml application/javascript text/css;
+        gzip_types text/plain text/xml application/javascript text/css;
         gzip_disable "msie6";
         gzip_min_length 1k;
         gzip_buffers 16 64k;
@@ -2149,9 +2148,9 @@ data:
         root /www/market;
 
         location / {
-		    add_header Cache-Control "no-store";
-		    try_files $uri $uri/index.html /index.html;
-	    }
+            add_header Cache-Control "no-store";
+            try_files $uri $uri/index.html /index.html;
+        }
 
         location /ws {
             proxy_pass http://AppstoreBackendWebScoket;
@@ -2170,9 +2169,9 @@ data:
             proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
         }
         location ~ \.(?!html) {
-		    add_header Cache-Control "public, max-age=2678400";
-		    try_files $uri =404;
-	    }
+            add_header Cache-Control "public, max-age=2678400";
+            try_files $uri =404;
+        }
     }
   desktop.conf: |-
     upstream DesktopSVCServer {
