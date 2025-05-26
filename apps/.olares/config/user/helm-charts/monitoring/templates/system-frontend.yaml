@@ -122,6 +122,64 @@ spec:
       port: 8080
       targetPort: 87
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: files-fe-service
+  namespace: user-space-{{ .Values.bfl.username }}
+spec:
+  selector:
+    app: system-frontend
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: files
+      port: 80
+      targetPort: 88
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: system-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 89
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appstore-fe-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: system-frontend
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: appstore
+      port: 80
+      targetPort: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-desktop
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: system-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 91
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -134,11 +192,11 @@ metadata:
     applications.app.bytetrade.io/group: 'true'
     applications.app.bytetrade.io/author: bytetrade.io
   annotations:
-    applications.app.bytetrade.io/icon: '{"dashboard":"https://file.bttcdn.com/appstore/dashboard/icon.png","control-hub":"https://file.bttcdn.com/appstore/control-hub/icon.png","profile":"https://file.bttcdn.com/appstore/profile/icon.png","wise":"https://file.bttcdn.com/appstore/rss/icon.png","headscale": "https://file.bttcdn.com/appstore/headscale/icon.png","settings": "https://file.bttcdn.com/appstore/settings/icon.png","studio":"https://file.bttcdn.com/appstore/devbox/icon.png"}'
-    applications.app.bytetrade.io/title: '{"dashboard": "Dashboard","control-hub":"Control Hub","profile":"Profile","wise":"Wise","headscale":"Headscale","settings":"Settings","studio":"Studio"}'
-    applications.app.bytetrade.io/version: '{"dashboard": "0.0.1","control-hub":"0.0.1","profile":"0.0.1","wise":"0.0.1","headscale":"0.0.1","settings":"0.0.1","studio":"0.0.1"}'
+    applications.app.bytetrade.io/icon: '{"dashboard":"https://file.bttcdn.com/appstore/dashboard/icon.png","control-hub":"https://file.bttcdn.com/appstore/control-hub/icon.png","profile":"https://file.bttcdn.com/appstore/profile/icon.png","wise":"https://file.bttcdn.com/appstore/rss/icon.png","headscale": "https://file.bttcdn.com/appstore/headscale/icon.png","settings": "https://file.bttcdn.com/appstore/settings/icon.png","studio":"https://file.bttcdn.com/appstore/devbox/icon.png","files":"https://file.bttcdn.com/appstore/files/icon.png","vault":"https://file.bttcdn.com/appstore/vault/icon.png","market":"https://file.bttcdn.com/appstore/appstore/icon.png"}'
+    applications.app.bytetrade.io/title: '{"dashboard": "Dashboard","control-hub":"Control Hub","profile":"Profile","wise":"Wise","headscale":"Headscale","settings":"Settings","studio":"Studio","files":"Files", "vault":"Vault","market":"Market"}'
+    applications.app.bytetrade.io/version: '{"dashboard": "0.0.1","control-hub":"0.0.1","profile":"0.0.1","wise":"0.0.1","headscale":"0.0.1","settings":"0.0.1","studio":"0.0.1","files":"0.0.1","vault":"0.0.1","market":"0.0.1"}'
     applications.app.bytetrade.io/policies: '{"dashboard":{"policies":[{"entranceName":"dashboard","uriRegex":"/js/script.js", "level":"public"},{"entranceName":"dashboard","uriRegex":"/js/api/send", "level":"public"}]}}'
-    applications.app.bytetrade.io/entrances: '{"dashboard":[{"name":"dashboard","host":"dashboard-service","port":80,"title":"Dashboard","windowPushState":true}],"control-hub":[{"name":"control-hub","host":"control-hub-service","port":80,"title":"Control Hub","windowPushState":true}],"profile":[{"name":"profile", "host":"profile-service", "port":80,"title":"Profile","windowPushState":true}],"wise":[{"name":"wise", "host":"wise-svc", "port":80,"title":"Wise","windowPushState":true}],"headscale":[{"name":"headscale", "host":"headscale-svc", "port":80,"title":"Headscale","invisible": true}],"settings":[{"name":"settings", "host":"settings-service", "port":80,"title":"Settings"}],"studio":[{"name":"studio","host":"studio-svc","port":8080,"title":"Studio","openMethod":"window"}]}'
+    applications.app.bytetrade.io/entrances: '{"dashboard":[{"name":"dashboard","host":"dashboard-service","port":80,"title":"Dashboard","windowPushState":true}],"control-hub":[{"name":"control-hub","host":"control-hub-service","port":80,"title":"Control Hub","windowPushState":true}],"profile":[{"name":"profile", "host":"profile-service", "port":80,"title":"Profile","windowPushState":true}],"wise":[{"name":"wise", "host":"wise-svc", "port":80,"title":"Wise","windowPushState":true}],"headscale":[{"name":"headscale", "host":"headscale-svc", "port":80,"title":"Headscale","invisible": true}],"settings":[{"name":"settings", "host":"settings-service", "port":80,"title":"Settings"}],"studio":[{"name":"studio","host":"studio-svc","port":8080,"title":"Studio","openMethod":"window"}],"files":[{"name":"files", "host":"files-fe-service", "port":80,"title":"Files","windowPushState":true}],"vault":[{"name":"vault", "host":"vault-service", "port":80,"title":"Vault","windowPushState":true}],"market":'[{"name":"appstore", "host":"appstore-fe-service", "port":80,"title":"Market","windowPushState":true}]}'
 spec:
   replicas: 1
   selector:
@@ -279,6 +337,55 @@ spec:
           volumeMounts:
             - mountPath: /www
               name: www-dir
+        - name: files-frontend-init
+          image: beclab/files-frontend:v1.3.9
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /www/files
+              cp -r /app/* /www/files
+          volumeMounts:
+            - mountPath: /www
+              name: www-dir
+        - name: vault-frontend-init
+          image: beclab/vault-frontend:v1.3.55
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /www/vault
+              cp -r /app/* /www/vault
+          volumeMounts:
+            - mountPath: /www
+              name: www-dir
+        - name: market-frontend-init
+          image: beclab/market-frontend:v0.3.12
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /www/market
+              cp -r /app/* /www/market
+          volumeMounts:
+            - mountPath: /www
+              name: www-dir
+        - name: edge-desktop-init
+          image: beclab/desktop:v0.2.59
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /www/desktop
+              cp -r /app/* /www/desktop
+          volumeMounts:
+            - mountPath: /www
+              name: www-dir
+
       containers:
         - name: terminus-envoy-sidecar
           image: bytetrade/envoy:v1.25.11
@@ -314,6 +421,10 @@ spec:
             - containerPort: 84
             - containerPort: 85
             - containerPort: 86
+            - containerPort: 88
+            - containerPort: 89
+            - containerPort: 90
+            - containerPort: 91
             - containerPort: 8090
           command:
             - /bin/sh
@@ -354,6 +465,18 @@ spec:
             - name: system-frontend-nginx-config
               mountPath: /etc/nginx/conf.d/studio.conf
               subPath: studio.conf
+            - name: system-frontend-nginx-config
+              mountPath: /etc/nginx/conf.d/files.conf
+              subPath: files.conf
+            - name: system-frontend-nginx-config
+              mountPath: /etc/nginx/conf.d/vault.conf
+              subPath: vault.conf
+            - name: system-frontend-nginx-config
+              mountPath: /etc/nginx/conf.d/market.conf
+              subPath: market.conf
+            - name: system-frontend-nginx-config
+              mountPath: /etc/nginx/conf.d/desktop.conf
+              subPath: desktop.conf
           env:
             - name: POD_UID
               valueFrom:
@@ -371,6 +494,18 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: NATS_HOST
+              value: nats.user-system-{{ .Values.bfl.username }}
+            - name: NATS_PORT
+              value: '4222'
+            - name: NATS_USERNAME
+              value: user-system-{{ .Values.bfl.username }}-files-frontend
+            - name: NATS_PASSWORD
+              value: {{ $files_frontend_nats_password | b64dec }}
+            - name: NATS_SUBJECT
+              value: terminus.os-system.files-notify
+            - name:apiServerURL
+              value: http://bfl.{{ .Release.Namespace }}:8080
         - name: terminus-ws-sidecar
           image: 'beclab/ws-gateway:v1.0.5'
           imagePullPolicy: IfNotPresent
@@ -438,6 +573,12 @@ spec:
           hostPath:
             type: Directory
             path: '{{ .Values.userspace.userData }}'
+        
+        - name: uploads-temp
+          hostPath:
+            type: DirectoryOrCreate
+            path: '{{ .Values.userspace.appCache }}/files/uploadstemp'
+            
         - name: system-frontend-nginx-config
           configMap:
             name: system-frontend-nginx-config
@@ -458,6 +599,14 @@ spec:
                 path: settings.conf
               - key: studio.conf
                 path: studio.conf
+              - key: files.conf
+                path: files.conf
+              - key: vault.conf
+                path: vault.conf
+              - key: market.conf
+                path: market.conf
+              - key: desktop.conf
+                path: desktop.conf
 
 
 ---
@@ -738,6 +887,24 @@ spec:
       uri: /api/cookie/retrieve
 status:
   state: active
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-server
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ExternalName
+  externalName: vault-server.os-system.svc.cluster.local
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+kind: ConfigMap
+metadata:
+  name: sidecar-upload-configs
+  namespace: {{ .Release.Namespace }}
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -1607,3 +1774,522 @@ data:
         add_header Cache-Control "public, max-age=2678400";
       }
     }
+    
+  files.conf: |-
+    upstream DriveServer {
+      server drive-svc:8181;
+    }
+    server {
+        listen 88;
+        gzip off;
+        gzip_disable "msie6";
+        gzip_min_length 1k;
+        gzip_buffers 16 64k;
+        gzip_http_version 1.1;
+        gzip_comp_level 6;
+        gzip_types *;
+        client_max_body_size 2000M;
+        keepalive_timeout 2700s;
+        root /www/files;
+        location / {
+            try_files $uri $uri/index.html /index.html;
+            add_header Cache-Control "private,no-cache";
+            add_header Last-Modified "Oct, 03 Jan 2022 13:46:41 GMT";
+            expires 0;
+        }
+        location /api/resources/AppData {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 60s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 75s;
+            proxy_read_timeout 60s;
+            proxy_send_timeout 60s;
+        }
+        location /api/raw/AppData {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 1800s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+        location /api/raw {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 1800s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /api/md5 {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+        
+        location /api/paste {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /api/cache {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /provider {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 60s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 75s;
+            proxy_read_timeout 60s;
+            proxy_send_timeout 60s;
+        }
+
+        location /api {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 600s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /share_link {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 600s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /upload {
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 600s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+        location /seahub/ {
+            proxy_pass http://seafile/;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 60s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 75s;
+            proxy_read_timeout 60s;
+            proxy_send_timeout 60s;
+        }
+        location /seafhttp/ {
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+        
+            proxy_pass http://seafile:8082/;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 60s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 75s;
+            proxy_read_timeout 60s;
+            proxy_send_timeout 60s;
+        }
+        location /videos/ {
+            if ($request_method = 'OPTIONS') {
+                add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+                add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+                add_header Access-Control-Allow-Origin $http_origin;
+                add_header Access-Control-Allow-Credentials true;
+                add_header 'Access-Control-Max-Age' 1728000;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+            add_header Access-Control-Allow-Origin $http_origin;  
+            proxy_pass http://media-server-service.os-system:9090;
+        }
+        location /drive/ {
+            proxy_pass http://DriveServer;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+        }
+        location /api/raw/Home/ {
+            expires 30d;
+            add_header Cache-Control "public, max-age=2592000";
+            proxy_pass http://files-service.os-system:80;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 600s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+        # Set cache for static resources
+        location ~ ^/(assets|js|css|fonts|img)/.*.(js|css|png|jpg|svg|woff|woff2)$
+        {
+            add_header Cache-Control "public, max-age=2678400";
+        }
+        location ~ ^/resources/Home/Pictures/(.*.(png|jpg|svg|gif|jpeg))$
+        {
+            alias /data/Pictures/$1;
+            autoindex off; 
+        }
+    }
+
+  vault.conf: |-
+    server {
+        listen 89;
+        gzip off;
+        gzip_disable "msie6";
+        gzip_min_length 1k;
+        gzip_buffers 16 64k;
+        gzip_http_version 1.1;
+        gzip_comp_level 6;
+        gzip_types *;
+        root /www/vault;
+        location / {
+            try_files $uri $uri/index.html /index.html;
+            add_header Cache-Control "private,no-cache";
+            add_header Last-Modified "Oct, 03 Jan 2022 13:46:41 GMT";
+            expires 0;
+        }
+        location /bfl/ {
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            proxy_pass http://bfl;
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+        location /server {
+            add_header Access-Control-Allow-Headers "x-authorization";
+            proxy_pass http://vault-server:3000;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            client_body_timeout 60s;
+            client_max_body_size 10M;
+            proxy_request_buffering off;
+            keepalive_timeout 75s;
+            proxy_read_timeout 60s;
+            proxy_send_timeout 60s;
+        }
+        location /notification{
+            proxy_pass http://127.0.0.1:3010;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+        }
+
+        location /api/firstfactor {
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+            add_header Access-Control-Allow-Origin $http_origin;
+	        add_header Access-Control-Allow-Credentials true;
+
+            proxy_pass http://authelia-backend-svc:9091;
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+        
+        location /api/refresh {
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+            add_header Access-Control-Allow-Origin $http_origin;
+	        add_header Access-Control-Allow-Credentials true;
+
+            proxy_pass http://authelia-backend-svc:9091;
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+
+        location /api/cookie {
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            proxy_pass http://settings-service;
+
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+
+            proxy_set_header X-Forwarded-Host $host;
+
+            client_body_timeout 60s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 75s;
+            proxy_read_timeout 60s;
+            proxy_send_timeout 60s;
+
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+        location ~ ^/(assets|js|css|fonts|img)/.*.(js|css|png|jpg|svg|woff|woff2)$
+        {
+            add_header Cache-Control "public, max-age=2678400";
+        }
+    }
+  market.conf: |-
+    upstream AppstoreBackendServer {
+      server appstore-svc:81;
+    }
+    upstream AppstoreBackendWebScoket {
+      server appstore-svc:40010;
+    }
+    
+    server {
+        listen 90;
+        gzip off;
+	    gzip_types text/plain text/xml application/javascript text/css;
+        gzip_disable "msie6";
+        gzip_min_length 1k;
+        gzip_buffers 16 64k;
+        gzip_http_version 1.1;
+        gzip_comp_level 6;
+        root /www/market;
+
+        location / {
+		    add_header Cache-Control "no-store";
+		    try_files $uri $uri/index.html /index.html;
+	    }
+
+        location /ws {
+            proxy_pass http://AppstoreBackendWebScoket;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+        }
+
+        location /app-store/ {
+            add_header 'Access-Control-Allow-Headers' 'x-api-nonce,x-api-ts,x-api-ver,x-api-source X-Authorization';
+            proxy_http_version 1.1;
+            proxy_pass http://AppstoreBackendServer;
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location ~ \.(?!html) {
+		    add_header Cache-Control "public, max-age=2678400";
+		    try_files $uri =404;
+	    }
+    }
+  desktop.conf: |-
+    upstream DesktopSVCServer {
+      server edge-desktop-svc:3010;
+    }
+    
+    server {
+        listen 91;
+        gzip off;
+        gzip_disable "msie6";
+        gzip_min_length 1k;
+        gzip_buffers 16 64k;
+        gzip_http_version 1.1;
+        gzip_comp_level 6;
+        gzip_types *;
+        root /www/desktop;
+
+	    root /www/market;
+        location / {
+            try_files $uri $uri/index.html /index.html;
+            add_header Cache-Control "private,no-cache";
+            add_header Last-Modified "Oct, 03 Jan 2022 13:46:41 GMT";
+            expires 0;
+        }
+        location /api/logout {
+            add_header 'Access-Control-Allow-Headers' 'x-api-nonce,x-api-ts,x-api-ver,x-api-source';
+            proxy_pass http://authelia-svc;
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+        location /api/device {
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+            add_header Access-Control-Allow-Origin $http_origin;
+            add_header Access-Control-Allow-Credentials true;
+            proxy_pass http://settings-service;
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+        location /api/refresh {
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+            add_header Access-Control-Allow-Origin $http_origin;
+            add_header Access-Control-Allow-Credentials true;
+            proxy_pass http://authelia-backend-svc:9091;
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+            add_header X-Frame-Options SAMEORIGIN;
+        }
+        location /api {
+            proxy_pass http://DesktopSVCServer;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /server {
+            if ($request_method = 'OPTIONS') {
+                add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+                add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+                add_header Access-Control-Allow-Origin $http_origin;
+                add_header Access-Control-Allow-Credentials true;
+                add_header 'Access-Control-Max-Age' 1728000;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+            add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
+            add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
+            add_header Access-Control-Allow-Origin $http_origin;
+            add_header Access-Control-Allow-Credentials true;
+            proxy_pass http://DesktopSVCServer;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /notification {
+            proxy_pass http://DesktopSVCServer;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /video {
+            proxy_pass http://DesktopSVCServer;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header            Host $host;
+            proxy_set_header            X-real-ip $remote_addr;
+            proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /seahub/ {
+            proxy_pass http://seafile/;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 60s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 75s;
+            proxy_read_timeout 60s;
+            proxy_send_timeout 60s;
+        }
+        location ~.*\.(js|css|png|jpg|svg|woff|woff2)${
+            add_header Cache-Control "public, max-age=2678400";
+        }
+    }
+  

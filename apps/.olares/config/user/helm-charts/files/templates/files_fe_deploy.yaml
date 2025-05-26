@@ -93,15 +93,7 @@ metadata:
   name: files-deployment
   namespace: {{ .Release.Namespace }}
   labels:
-    app: files
-    applications.app.bytetrade.io/name: files
-    applications.app.bytetrade.io/owner: '{{ .Values.bfl.username }}'
     applications.app.bytetrade.io/author: bytetrade.io
-  annotations:
-    applications.app.bytetrade.io/icon: https://file.bttcdn.com/appstore/files/icon.png
-    applications.app.bytetrade.io/title: Files
-    applications.app.bytetrade.io/version: '0.0.1'
-    applications.app.bytetrade.io/entrances: '[{"name":"files", "host":"files-service", "port":80,"title":"Files","windowPushState":true}]'
 spec:
   replicas: 1
   selector:
@@ -206,143 +198,8 @@ spec:
             value: "{{ $pg_password | b64dec }}"
           - name: PGDB
             value: user_space_{{ .Values.bfl.username }}_cloud_drive_integration
-      - name: files-frontend-init
-        image: beclab/files-frontend:v1.3.61
-        imagePullPolicy: IfNotPresent
-        volumeMounts:
-          - name: app
-            mountPath: /cp_app
-          - name: nginx-confd
-            mountPath: /confd
-        command:
-        - sh
-        - -c
-        - |
-          cp -rf /app/* /cp_app/. && cp -rf /etc/nginx/conf.d/* /confd/.
 
       containers:
-#      - name: gateway
-#        image: beclab/appdata-gateway:0.1.12
-#        imagePullPolicy: IfNotPresent
-#        ports:
-#        - containerPort: 8080
-#        env:
-#        - name: FILES_SERVER_TAG
-#          value: 'beclab/files-server:v0.2.27'
-#        - name: NAMESPACE
-#          valueFrom:
-#            fieldRef:
-#              fieldPath: metadata.namespace
-#        - name: OS_SYSTEM_SERVER
-#          value: system-server.user-system-{{ .Values.bfl.username }}
-
-#      - name: files
-#        image: beclab/files-server:v0.2.27
-#        imagePullPolicy: IfNotPresent
-#        volumeMounts:
-#        - name: fb-data
-#          mountPath: /appdata
-#        - name: userspace-dir
-#          mountPath: /data/Home
-#        - name: userspace-app-dir
-#          mountPath: /data/Application
-#        - name: watch-dir
-#          mountPath: /data/Home/Documents
-#        - name: upload-appdata
-#          mountPath: /appcache/
-#        ports:
-#        - containerPort: 8110
-#        env:
-#        - name: ES_ENABLED
-#          value: 'True'
-#        - name: WATCHER_ENABLED
-#          value: 'True'
-#        - name: cloud-drive-integration_BASE_ENABLED
-#          value: 'True'
-#        - name: BFL_NAME
-#          value: '{{ .Values.bfl.username }}'
-#        - name: FB_DATABASE
-#          value: /appdata/database/filebrowser.db
-#        - name: FB_CONFIG
-#          value: /appdata/config/settings.json
-#        - name: FB_ROOT
-#          value: /data
-#        - name: OS_SYSTEM_SERVER
-#          value: system-server.user-system-{{ .Values.bfl.username }}
-#        - name: OS_APP_SECRET
-#          value: '{{ .Values.os.files.appSecret }}'
-#        - name: OS_APP_KEY
-#          value: {{ .Values.os.files.appKey }}
-#        - name: ZINC_USER
-#          value: zincuser-files-{{ .Values.bfl.username }}
-#        - name: ZINC_PASSWORD
-#          value: {{ $password | b64dec }}
-#        - name: ZINC_HOST
-#          value: zinc-server-svc.user-system-{{ .Values.bfl.username }}
-#        - name: ZINC_PORT
-#          value: "80"
-#        - name: ZINC_INDEX
-#          value: {{ .Release.Namespace }}_zinc-files
-#        - name: WATCH_DIR
-#          value: /data/Home/Documents
-#        - name: PATH_PREFIX
-#          value: /data/Home
-#        - name: REDIS_HOST
-#          value: redis-cluster-proxy.user-system-{{ .Values.bfl.username }}
-#        - name: REDIS_PORT
-#          value: '6379'
-#        - name: REDIS_USERNAME
-#          value: ''
-#        - name: REDIS_PASSWORD
-#          value: {{ $redis_password | b64dec }}
-#        - name: REDIS_USE_SSL
-#          value: 'false'
-#          # use redis db 0 for redis cache
-#        - name: REDIS_DB
-#          value: '0'
-#        - name: REDIS_URL
-#          value: 'redis://:{{ $redis_password | b64dec }}@redis-cluster-proxy.user-system-{{ .Values.bfl.username }}:6379/0'
-#        - name: POD_NAME
-#          valueFrom:
-#            fieldRef:
-#              fieldPath: metadata.name
-#        - name: NAMESPACE
-#          valueFrom:
-#            fieldRef:
-#              fieldPath: metadata.namespace
-#        - name: CONTAINER_NAME
-#          value: files
-#        - name: NOTIFY_SERVER
-#          value: fsnotify-svc.user-system-{{ .Values.bfl.username }}:5079
-#        command:
-#        - /filebrowser
-#        - --noauth
-      - name: files-frontend
-        image: beclab/docker-nginx-headers-more:ubuntu-v0.1.0
-        imagePullPolicy: IfNotPresent
-        securityContext:
-          runAsNonRoot: false
-          runAsUser: 0
-        ports:
-        - containerPort: 80
-        env:
-          - name: NATS_HOST
-            value: nats.user-system-{{ .Values.bfl.username }}
-          - name: NATS_PORT
-            value: '4222'
-          - name: NATS_USERNAME
-            value: user-system-{{ .Values.bfl.username }}-files-frontend
-          - name: NATS_PASSWORD
-            value: {{ $files_frontend_nats_password | b64dec }}
-          - name: NATS_SUBJECT
-            value: terminus.os-system.files-notify
-        volumeMounts:
-        - name: userspace-dir
-          mountPath: /data
-        - name: app
-          mountPath: /app
-        - name: nginx-confd
-          mountPath: /etc/nginx/conf.d
       - name: drive-server
         image: beclab/drive:v0.0.72
         imagePullPolicy: IfNotPresent
@@ -389,26 +246,6 @@ spec:
           mountPath: /data/Application
         - name: data-dir
           mountPath: /data
-#      - name: terminus-upload-sidecar
-#        image: beclab/upload:v1.0.3
-#        env:
-#        - name: UPLOAD_FILE_TYPE
-#          value: '*'
-#        - name: UPLOAD_LIMITED_SIZE
-#          value: '21474836481'
-#        volumeMounts:
-#        - name: upload-data
-#          mountPath: /data/Home
-#        - name: upload-appdata
-#          mountPath: /appdata/
-#        - name: userspace-app-dir
-#          mountPath: /data/Application
-#        - name: uploads-temp
-#          mountPath: /uploadstemp
-#        resources: { }
-#        terminationMessagePath: /dev/termination-log
-#        terminationMessagePolicy: File
-#        imagePullPolicy: IfNotPresent
 
       - name: terminus-envoy-sidecar
         image: bytetrade/envoy:v1.25.11
@@ -494,24 +331,6 @@ spec:
       - name: nginx-confd
         emptyDir: {}
 
-   
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: files-service
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    app: files
-  type: ClusterIP
-  ports:
-    - protocol: TCP
-      name: files
-      port: 80
-      targetPort: 80
-
 ---
 apiVersion: sys.bytetrade.io/v1alpha1
 kind: ProviderRegistry
@@ -541,121 +360,6 @@ spec:
 status:
   state: active
 
-#---
-#apiVersion: sys.bytetrade.io/v1alpha1
-#kind: ApplicationPermission
-#metadata:
-#  name: files
-#  namespace: user-system-{{ .Values.bfl.username }}
-#spec:
-#  app: files
-#  appid: files
-#  key: {{ .Values.os.files.appKey }}
-#  secret: {{ .Values.os.files.appSecret }}
-#  permissions:
-#    - dataType: gateway
-#      group: service.difyfusionclient
-#      ops:
-#        - DifyGatewayBaseProvider
-#      version: v1
-#status:
-#  state: active
-
-#---
-#apiVersion: v1
-#data:
-#  mappings: |
-#    {
-#      "properties": {
-#        "@timestamp": {
-#          "type": "date",
-#          "index": true,
-#          "store": false,
-#          "sortable": true,
-#          "aggregatable": true,
-#          "highlightable": false
-#        },
-#        "_id": {
-#          "type": "keyword",
-#          "index": true,
-#          "store": false,
-#          "sortable": true,
-#          "aggregatable": true,
-#          "highlightable": false
-#        },
-#        "content": {
-#          "type": "text",
-#          "index": true,
-#          "store": true,
-#          "sortable": false,
-#          "aggregatable": false,
-#          "highlightable": true
-#        },
-#        "created": {
-#          "type": "numeric",
-#          "index": true,
-#          "store": false,
-#          "sortable": true,
-#          "aggregatable": true,
-#          "highlightable": false
-#        },
-#        "format_name": {
-#          "type": "text",
-#          "index": true,
-#          "store": false,
-#          "sortable": false,
-#          "aggregatable": false,
-#          "highlightable": false
-#        },
-#        "md5": {
-#          "type": "text",
-#          "analyzer": "keyword",
-#          "index": true,
-#          "store": false,
-#          "sortable": false,
-#          "aggregatable": false,
-#          "highlightable": false
-#        },
-#        "name": {
-#          "type": "text",
-#          "index": true,
-#          "store": false,
-#          "sortable": false,
-#          "aggregatable": false,
-#          "highlightable": false
-#        },
-#        "size": {
-#          "type": "numeric",
-#          "index": true,
-#          "store": false,
-#          "sortable": true,
-#          "aggregatable": true,
-#          "highlightable": false
-#        },
-#        "updated": {
-#          "type": "numeric",
-#          "index": true,
-#          "store": false,
-#          "sortable": true,
-#          "aggregatable": true,
-#          "highlightable": false
-#        },
-#        "where": {
-#          "type": "text",
-#          "analyzer": "keyword",
-#          "index": true,
-#          "store": false,
-#          "sortable": false,
-#          "aggregatable": false,
-#          "highlightable": false
-#        }
-#      }
-#    }
-#kind: ConfigMap
-#metadata:
-#  name: zinc-files
-#  namespace: user-system-{{ .Values.bfl.username }}
-
 ---
 apiVersion: v1
 kind: Secret
@@ -677,28 +381,6 @@ metadata:
 data:
   files_frontend_nats_password: {{ $files_frontend_nats_password }}
 type: Opaque
-
-#---
-#apiVersion: apr.bytetrade.io/v1alpha1
-#kind: MiddlewareRequest
-#metadata:
-#  name: zinc-files
-#  namespace: user-system-{{ .Values.bfl.username }}
-#spec:
-#  app: files
-#  appNamespace: user-space-{{ .Values.bfl.username }}
-#  middleware: zinc
-#  zinc:
-#    user: zincuser-files-{{ .Values.bfl.username }}
-#    password:
-#      valueFrom:
-#        secretKeyRef:
-#          key: password
-#          name: zinc-files-secrets
-#    indexes:
-#      - name: zinc-files
-#        namespace: user-system-{{ .Values.bfl.username }}
-#        key: mappings
 
 ---
 apiVersion: apr.bytetrade.io/v1alpha1
@@ -936,3 +618,18 @@ kind: ConfigMap
 metadata:
   name: sidecar-upload-configs
   namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drive-svc
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: files-deployment
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: drive-server
+      port: 8181
+      targetPort: 8181

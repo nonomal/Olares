@@ -747,3 +747,19 @@ kind: ConfigMap
 metadata:
   name: sidecar-ws-configs
   namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-desktop-svc
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: edge-desktop
+  ports:
+    - name: "desktop-server"
+      protocol: TCP
+      port: 3010
+      targetPort: 3010
