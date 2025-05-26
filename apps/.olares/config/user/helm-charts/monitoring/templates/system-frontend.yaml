@@ -2083,7 +2083,6 @@ data:
             add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
             add_header Access-Control-Allow-Origin $http_origin;
 	        add_header Access-Control-Allow-Credentials true;
-
             proxy_pass http://authelia-backend-svc:9091;
             proxy_set_header            Host $host;
             proxy_set_header            X-real-ip $remote_addr;
@@ -2095,8 +2094,7 @@ data:
             add_header Access-Control-Allow-Headers "access-control-allow-headers,access-control-allow-methods,access-control-allow-origin,content-type,x-auth,x-unauth-error,x-authorization";
             add_header Access-Control-Allow-Methods "PUT, GET, DELETE, POST, OPTIONS";
             add_header Access-Control-Allow-Origin $http_origin;
-	        add_header Access-Control-Allow-Credentials true;
-
+            add_header Access-Control-Allow-Credentials true;
             proxy_pass http://authelia-backend-svc:9091;
             proxy_set_header            Host $host;
             proxy_set_header            X-real-ip $remote_addr;
@@ -2188,8 +2186,7 @@ data:
         gzip_comp_level 6;
         gzip_types *;
         root /www/desktop;
-
-	    root /www/market;
+        
         location / {
             try_files $uri $uri/index.html /index.html;
             add_header Cache-Control "private,no-cache";
