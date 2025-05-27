@@ -815,6 +815,288 @@ data:
   username: "{{ .Values.bfl.username }}"
 ---
 apiVersion: sys.bytetrade.io/v1alpha1
+kind: ProviderRegistry
+metadata:
+  name: files-provider
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  dataType: files
+  deployment: files
+  description: files provider
+  endpoint: files-service.{{ .Release.Namespace }}
+  group: service.files
+  kind: provider
+  namespace: {{ .Release.Namespace }}
+  opApis:
+    - name: Query
+      uri: /provider/query_file
+    - name: GetSearchFolderStatus
+      uri: /provider/get_search_folder_status
+    - name: UpdateSearchFolderPaths
+      uri: /provider/update_search_folder_paths
+    - name: GetDatasetFolderStatus
+      uri: /provider/get_dataset_folder_status
+    - name: UpdateDatasetFolderPaths
+      uri: /provider/update_dataset_folder_paths
+  version: v1
+status:
+  state: active
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zinc-files-secrets
+  namespace: user-system-{{ .Values.bfl.username }}
+type: Opaque
+data:
+  password: {{ $password }}
+  redis_password: {{ $redis_password }}
+  pg_password: {{ $pg_password }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: files-frontend-nats-secrets
+  namespace: user-system-{{ .Values.bfl.username }}
+data:
+  files_frontend_nats_password: {{ $files_frontend_nats_password }}
+type: Opaque
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: zinc-files-redis
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  app: files
+  appNamespace: user-space-{{ .Values.bfl.username }}
+  middleware: redis
+  redis:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: redis_password
+          name: zinc-files-secrets
+    namespace: zinc-files
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: files-frontend-nat
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  app: files-frontend
+  appNamespace: user-space-{{ .Values.bfl.username }}
+  middleware: nats
+  nats:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: files_frontend_nats_password
+          name: files-frontend-nats-secrets
+    refs:
+      - appName: files-server
+        appNamespace: os-system
+        subjects:
+          - name: files-notify
+            perm:
+              - pub
+              - sub
+    user: user-system-{{ .Values.bfl.username }}-files-frontend
+---
+apiVersion: v1
+data:
+  envoy.yaml: |
+    admin:
+      access_log_path: "/dev/stdout"
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 15000
+    static_resources:
+      listeners:
+        - name: listener_0
+          address:
+            socket_address:
+              address: 0.0.0.0
+              port_value: 15003
+          listener_filters:
+            - name: envoy.filters.listener.original_dst
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.http_connection_manager
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                    stat_prefix: desktop_http
+                    upgrade_configs:
+                      - upgrade_type: websocket
+                      - upgrade_type: tailscale-control-protocol
+                    skip_xff_append: false
+                    max_request_headers_kb: 500
+                    codec_type: AUTO
+                    route_config:
+                      name: local_route
+                      virtual_hosts:
+                        - name: service
+                          domains: ["*"]
+                          routes:
+                            - match:
+                                prefix: "/upload"
+                              route:
+                                cluster: upload_original_dst
+                                timeout: 1800s
+                                idle_timeout: 1800s
+                            - match:
+                                prefix: "/"
+                              route:
+                                cluster: original_dst
+                                timeout: 1800s
+                                idle_timeout: 1800s
+                    http_protocol_options:
+                      accept_http_10: true
+                    http_filters:
+                      - name: envoy.filters.http.ext_authz
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                          http_service:
+                            path_prefix: '/api/verify/'
+                            server_uri:
+                              uri: authelia-backend.os-system:9091
+                              cluster: authelia
+                              timeout: 2s
+                            authorization_request:
+                              allowed_headers:
+                                patterns:
+                                  - exact: accept
+                                  - exact: cookie
+                                  - exact: proxy-authorization
+                                  - prefix: x-unauth-
+                                  - exact: x-authorization
+                                  - exact: x-bfl-user
+                                  - exact: x-real-ip
+                                  - exact: terminus-nonce
+                              headers_to_add:
+                                - key: X-Forwarded-Method
+                                  value: '%REQ(:METHOD)%'
+                                - key: X-Forwarded-Proto
+                                  value: '%REQ(:SCHEME)%'
+                                - key: X-Forwarded-Host
+                                  value: '%REQ(:AUTHORITY)%'
+                                - key: X-Forwarded-Uri
+                                  value: '%REQ(:PATH)%'
+                                - key: X-Forwarded-For
+                                  value: '%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%'
+                            authorization_response:
+                              allowed_upstream_headers:
+                                patterns:
+                                  - exact: authorization
+                                  - exact: proxy-authorization
+                                  - prefix: remote-
+                                  - prefix: authelia-
+                              allowed_client_headers:
+                                patterns:
+                                  - exact: set-cookie
+                              allowed_client_headers_on_success:
+                                patterns:
+                                  - exact: set-cookie
+                          failure_mode_allow: false
+                      - name: envoy.filters.http.router
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+        - name: listener_image
+          address:
+            socket_address:
+              address: 127.0.0.1
+              port_value: 15080
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.http_connection_manager
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                    stat_prefix: tapr_http
+                    http_protocol_options:
+                      accept_http_10: true
+                    upgrade_configs:
+                      - upgrade_type: websocket
+                    skip_xff_append: false
+                    codec_type: AUTO
+                    route_config:
+                      name: local_route
+                      virtual_hosts:
+                        - name: service
+                          domains: ["*"]
+                          routes:
+                            - match:
+                                prefix: "/images/upload"
+                              route:
+                                cluster: images
+                    http_filters:
+                      - name: envoy.filters.http.router
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+
+      clusters:
+        - name: original_dst
+          connect_timeout: 120s
+          type: ORIGINAL_DST
+          lb_policy: CLUSTER_PROVIDED
+          common_http_protocol_options:
+            idle_timeout: 10s
+        - name: upload_original_dst
+          connect_timeout: 5000s
+          type: LOGICAL_DNS
+          dns_lookup_family: V4_ONLY
+          dns_refresh_rate: 600s
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: upload_original_dst
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: files-service.os-system
+                          port_value: 80
+        - name: authelia
+          connect_timeout: 2s
+          type: LOGICAL_DNS
+          dns_lookup_family: V4_ONLY
+          dns_refresh_rate: 600s
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: authelia
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: authelia-backend.os-system
+                          port_value: 9091
+        - name: images
+          connect_timeout: 5s
+          type: LOGICAL_DNS
+          dns_lookup_family: V4_ONLY
+          dns_refresh_rate: 600s
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: images
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: tapr-images-svc.user-system-{{ .Values.bfl.username }}
+                          port_value: 8080
+kind: ConfigMap
+metadata:
+  name: sidecar-upload-configs
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: sys.bytetrade.io/v1alpha1
 kind: ApplicationPermission
 metadata:
   name: dashboard-vault
@@ -1092,97 +1374,6 @@ spec:
 status:
   state: active
 ---
-
-apiVersion: sys.bytetrade.io/v1alpha1
-kind: ProviderRegistry
-metadata:
-  name: files-provider
-  namespace: user-system-{{ .Values.bfl.username }}
-spec:
-  dataType: files
-  deployment: files
-  description: files provider
-  endpoint: files-service.{{ .Release.Namespace }}
-  group: service.files
-  kind: provider
-  namespace: {{ .Release.Namespace }}
-  opApis:
-    - name: Query
-      uri: /provider/query_file
-    - name: GetSearchFolderStatus
-      uri: /provider/get_search_folder_status
-    - name: UpdateSearchFolderPaths
-      uri: /provider/update_search_folder_paths
-    - name: GetDatasetFolderStatus
-      uri: /provider/get_dataset_folder_status
-    - name: UpdateDatasetFolderPaths
-      uri: /provider/update_dataset_folder_paths
-  version: v1
-status:
-  state: active
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: zinc-files-secrets
-  namespace: user-system-{{ .Values.bfl.username }}
-type: Opaque
-data:
-  password: {{ $password }}
-  redis_password: {{ $redis_password }}
-  pg_password: {{ $pg_password }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: files-frontend-nats-secrets
-  namespace: user-system-{{ .Values.bfl.username }}
-data:
-  files_frontend_nats_password: {{ $files_frontend_nats_password }}
-type: Opaque
----
-apiVersion: apr.bytetrade.io/v1alpha1
-kind: MiddlewareRequest
-metadata:
-  name: zinc-files-redis
-  namespace: user-system-{{ .Values.bfl.username }}
-spec:
-  app: files
-  appNamespace: user-space-{{ .Values.bfl.username }}
-  middleware: redis
-  redis:
-    password:
-      valueFrom:
-        secretKeyRef:
-          key: redis_password
-          name: zinc-files-secrets
-    namespace: zinc-files
----
-apiVersion: apr.bytetrade.io/v1alpha1
-kind: MiddlewareRequest
-metadata:
-  name: files-frontend-nat
-  namespace: user-system-{{ .Values.bfl.username }}
-spec:
-  app: files-frontend
-  appNamespace: user-space-{{ .Values.bfl.username }}
-  middleware: nats
-  nats:
-    password:
-      valueFrom:
-        secretKeyRef:
-          key: files_frontend_nats_password
-          name: files-frontend-nats-secrets
-    refs:
-      - appName: files-server
-        appNamespace: os-system
-        subjects:
-          - name: files-notify
-            perm:
-              - pub
-              - sub
-    user: user-system-{{ .Values.bfl.username }}-files-frontend
----
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1211,199 +1402,6 @@ spec:
     databases:
     - name: user-service
 ---
-
-apiVersion: v1
-data:
-  envoy.yaml: |
-    admin:
-      access_log_path: "/dev/stdout"
-      address:
-        socket_address:
-          address: 0.0.0.0
-          port_value: 15000
-    static_resources:
-      listeners:
-        - name: listener_0
-          address:
-            socket_address:
-              address: 0.0.0.0
-              port_value: 15003
-          listener_filters:
-            - name: envoy.filters.listener.original_dst
-              typed_config:
-                "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
-          filter_chains:
-            - filters:
-                - name: envoy.filters.network.http_connection_manager
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                    stat_prefix: desktop_http
-                    upgrade_configs:
-                      - upgrade_type: websocket
-                      - upgrade_type: tailscale-control-protocol
-                    skip_xff_append: false
-                    max_request_headers_kb: 500
-                    codec_type: AUTO
-                    route_config:
-                      name: local_route
-                      virtual_hosts:
-                        - name: service
-                          domains: ["*"]
-                          routes:
-                            - match:
-                                prefix: "/upload"
-                              route:
-                                cluster: upload_original_dst
-                                timeout: 1800s
-                                idle_timeout: 1800s
-                            - match:
-                                prefix: "/"
-                              route:
-                                cluster: original_dst
-                                timeout: 1800s
-                                idle_timeout: 1800s
-                    http_protocol_options:
-                      accept_http_10: true
-                    http_filters:
-                      - name: envoy.filters.http.ext_authz
-                        typed_config:
-                          "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
-                          http_service:
-                            path_prefix: '/api/verify/'
-                            server_uri:
-                              uri: authelia-backend.os-system:9091
-                              cluster: authelia
-                              timeout: 2s
-                            authorization_request:
-                              allowed_headers:
-                                patterns:
-                                  - exact: accept
-                                  - exact: cookie
-                                  - exact: proxy-authorization
-                                  - prefix: x-unauth-
-                                  - exact: x-authorization
-                                  - exact: x-bfl-user
-                                  - exact: x-real-ip
-                                  - exact: terminus-nonce
-                              headers_to_add:
-                                - key: X-Forwarded-Method
-                                  value: '%REQ(:METHOD)%'
-                                - key: X-Forwarded-Proto
-                                  value: '%REQ(:SCHEME)%'
-                                - key: X-Forwarded-Host
-                                  value: '%REQ(:AUTHORITY)%'
-                                - key: X-Forwarded-Uri
-                                  value: '%REQ(:PATH)%'
-                                - key: X-Forwarded-For
-                                  value: '%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%'
-                            authorization_response:
-                              allowed_upstream_headers:
-                                patterns:
-                                  - exact: authorization
-                                  - exact: proxy-authorization
-                                  - prefix: remote-
-                                  - prefix: authelia-
-                              allowed_client_headers:
-                                patterns:
-                                  - exact: set-cookie
-                              allowed_client_headers_on_success:
-                                patterns:
-                                  - exact: set-cookie
-                          failure_mode_allow: false
-                      - name: envoy.filters.http.router
-                        typed_config:
-                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
-
-        - name: listener_image
-          address:
-            socket_address:
-              address: 127.0.0.1
-              port_value: 15080
-          filter_chains:
-            - filters:
-                - name: envoy.filters.network.http_connection_manager
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                    stat_prefix: tapr_http
-                    http_protocol_options:
-                      accept_http_10: true
-                    upgrade_configs:
-                      - upgrade_type: websocket
-                    skip_xff_append: false
-                    codec_type: AUTO
-                    route_config:
-                      name: local_route
-                      virtual_hosts:
-                        - name: service
-                          domains: ["*"]
-                          routes:
-                            - match:
-                                prefix: "/images/upload"
-                              route:
-                                cluster: images
-                    http_filters:
-                      - name: envoy.filters.http.router
-                        typed_config:
-                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
-
-
-      clusters:
-        - name: original_dst
-          connect_timeout: 120s
-          type: ORIGINAL_DST
-          lb_policy: CLUSTER_PROVIDED
-          common_http_protocol_options:
-            idle_timeout: 10s
-        - name: upload_original_dst
-          connect_timeout: 5000s
-          type: LOGICAL_DNS
-          dns_lookup_family: V4_ONLY
-          dns_refresh_rate: 600s
-          lb_policy: ROUND_ROBIN
-          load_assignment:
-            cluster_name: upload_original_dst
-            endpoints:
-              - lb_endpoints:
-                  - endpoint:
-                      address:
-                        socket_address:
-                          address: files-service.os-system
-                          port_value: 80
-        - name: authelia
-          connect_timeout: 2s
-          type: LOGICAL_DNS
-          dns_lookup_family: V4_ONLY
-          dns_refresh_rate: 600s
-          lb_policy: ROUND_ROBIN
-          load_assignment:
-            cluster_name: authelia
-            endpoints:
-              - lb_endpoints:
-                  - endpoint:
-                      address:
-                        socket_address:
-                          address: authelia-backend.os-system
-                          port_value: 9091
-        - name: images
-          connect_timeout: 5s
-          type: LOGICAL_DNS
-          dns_lookup_family: V4_ONLY
-          dns_refresh_rate: 600s
-          lb_policy: ROUND_ROBIN
-          load_assignment:
-            cluster_name: images
-            endpoints:
-              - lb_endpoints:
-                  - endpoint:
-                      address:
-                        socket_address:
-                          address: tapr-images-svc.user-system-{{ .Values.bfl.username }}
-                          port_value: 8080
-kind: ConfigMap
-metadata:
-  name: sidecar-upload-configs
-  namespace: {{ .Release.Namespace }}
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -1417,11 +1415,6 @@ spec:
       port: 3000
       targetPort: 3000
 ---
-kind: ConfigMap
-metadata:
-  name: sidecar-upload-configs
-  namespace: {{ .Release.Namespace }}
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1442,28 +1435,6 @@ roleRef:
   kind: ClusterRole
   name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  namespace: {{ .Release.Namespace }}
-  name: internal-kubectl
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ .Release.Namespace }}:edge-desktop-rb
-subjects:
-  - kind: ServiceAccount
-    namespace: {{ .Release.Namespace }}
-    name: internal-kubectl
-roleRef:
-  # kind: Role
-  kind: ClusterRole
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
-
 ---
 apiVersion: sys.bytetrade.io/v1alpha1
 kind: ProviderRegistry
@@ -3385,6 +3356,13 @@ data:
             keepalive_timeout 75s;
             proxy_read_timeout 60s;
             proxy_send_timeout 60s;
+        }
+        location /ws {
+            proxy_pass http://rss-svc.os-system:40010;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
         }
         location ~.*\.(js|css|png|jpg|svg|woff|woff2)$ {
             add_header Cache-Control "public, max-age=2678400";
