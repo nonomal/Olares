@@ -7,8 +7,6 @@ metadata:
   labels:
     app: edge-desktop
     applications.app.bytetrade.io/author: bytetrade.io
-  annotations:
-    applications.app.bytetrade.io/version: '0.0.1'
 spec:
   replicas: 1
   selector:
@@ -65,18 +63,6 @@ spec:
               fieldPath: status.podIP
 
       containers:
-      - name: edge-desktop
-        image: beclab/desktop:v0.2.59
-        imagePullPolicy: IfNotPresent
-        securityContext:
-          runAsNonRoot: false
-          runAsUser: 0
-        ports:
-        - containerPort: 80
-        env:
-          - name: apiServerURL
-            value: http://bfl.{{ .Release.Namespace }}:8080
-
       - name: desktop-server
         image: beclab/desktop-server:v0.2.59
         imagePullPolicy: IfNotPresent
@@ -163,21 +149,6 @@ spec:
           items:
           - key: envoy.yaml
             path: envoy.yaml
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: edge-desktop
-  namespace: {{ .Release.Namespace }}
-spec:
-  type: ClusterIP
-  selector:
-    app: edge-desktop
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
       
 ---
 apiVersion: v1
