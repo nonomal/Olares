@@ -39,8 +39,6 @@ spec:
         instrumentation.opentelemetry.io/inject-go: "olares-instrumentation"
         instrumentation.opentelemetry.io/go-container-names: "appstore-backend"    
         instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app/market"
-        instrumentation.opentelemetry.io/inject-nginx: "olares-instrumentation"
-        instrumentation.opentelemetry.io/inject-nginx-container-names: "appstore"    
     spec:
       priorityClassName: "system-cluster-critical"
       initContainers:
