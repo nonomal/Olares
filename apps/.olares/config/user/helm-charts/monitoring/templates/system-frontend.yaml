@@ -1379,6 +1379,15 @@ type: Opaque
 data:
   pg_password: {{ $user_service_pg_password }}
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-service-secrets
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+data:
+  pg_password: {{ $user_service_pg_password }}
+---
 apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
 metadata:
