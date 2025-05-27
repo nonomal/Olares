@@ -1,5 +1,6 @@
 {{- $namespace := printf "%s%s" "user-system-" .Values.bfl.username -}}
 {{- $zinc_files_secret := (lookup "v1" "Secret" $namespace "zinc-files-secrets") -}}
+{{- $user_service_secret := (lookup "v1" "Secret" $namespace "user-service-secrets") -}}
 
 {{- $password := "" -}}
 {{ if $zinc_files_secret -}}
@@ -32,6 +33,15 @@
 {{ else -}}
 {{ $files_frontend_nats_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
+
+
+{{- $user_service_pg_password := "" -}}
+{{ if $user_service_secret -}}
+{{ $user_service_pg_password = (index $user_service_secret "data" "pg_password") }}
+{{ else -}}
+{{ $user_service_pg_password = randAlphaNum 16 | b64enc }}
+{{- end -}}
+
 ---
 apiVersion: v1
 kind: Service
@@ -242,7 +252,7 @@ spec:
         io.bytetrade.app: "true"
       annotations:
         instrumentation.opentelemetry.io/inject-nodejs: "olares-instrumentation"
-        instrumentation.opentelemetry.io/nodejs-container-names: "settings-server"    
+        instrumentation.opentelemetry.io/nodejs-container-names: "user-service"    
         instrumentation.opentelemetry.io/inject-nginx: "olares-instrumentation"
         instrumentation.opentelemetry.io/inject-nginx-container-names: "system-frontend"    
     spec:
@@ -370,7 +380,7 @@ spec:
           volumeMounts:
             - mountPath: /www
               name: www-dir
-         - name: init-files-data
+        - name: init-files-data
           image: busybox:1.28
           securityContext:
             privileged: true
@@ -572,7 +582,7 @@ spec:
               value: {{ $files_frontend_nats_password | b64dec }}
             - name: NATS_SUBJECT
               value: terminus.os-system.files-notify
-            - name:apiServerURL
+            - name: apiServerURL
               value: http://bfl.{{ .Release.Namespace }}:8080
         - name: terminus-ws-sidecar
           image: 'beclab/ws-gateway:v1.0.5'
@@ -587,8 +597,8 @@ spec:
           resources: {}
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-        - name: settings-server
-          image: beclab/settings-server:v0.2.23
+        - name: user-service
+          image: beclab/user-service:v0.0.5
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -624,6 +634,13 @@ spec:
             # value: none / nvidia / nvshare / virtaitech
             - name: GPU
               value: {{ .Values.gpu }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: pg_password
+                  name: user-service-secrets
+            - name: DATABASE_URL
+              value: postgres://user_service_{{ .Values.bfl.username }}:$(DATABASE_PASSWORD)@citus-master-svc.user-system-{{ .Values.bfl.username }}/user_space_{{ .Values.bfl.username }}_user_service?sslmode=disable
         - name: drive-server
           image: beclab/drive:v0.0.72
           imagePullPolicy: IfNotPresent
@@ -1166,6 +1183,34 @@ spec:
               - sub
     user: user-system-{{ .Values.bfl.username }}-files-frontend
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-service-secrets
+  namespace: user-system-{{ .Values.bfl.username }}
+type: Opaque
+data:
+  pg_password: {{ $user_service_pg_password }}
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: user-service-pg
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  app: user-service
+  appNamespace: user-space-{{ .Values.bfl.username }}
+  middleware: postgres
+  postgreSQL:
+    user: user_service_{{ .Values.bfl.username }}
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: pg_password
+          name: user-service-secrets
+    databases:
+    - name: user-service
+---
 
 apiVersion: v1
 data:
@@ -1397,6 +1442,574 @@ roleRef:
   kind: ClusterRole
   name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: internal-kubectl
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Namespace }}:edge-desktop-rb
+subjects:
+  - kind: ServiceAccount
+    namespace: {{ .Release.Namespace }}
+    name: internal-kubectl
+roleRef:
+  # kind: Role
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: sys.bytetrade.io/v1alpha1
+kind: ProviderRegistry
+metadata:
+  name: app-event-watcher
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  callbacks:
+  - filters:
+      type:
+      - app-installation-event
+    op: Create
+    uri: /server/app_installation_event
+  - filters:
+      type:
+        - entrance-state-event
+    op: Create
+    uri: /server/entrance_state_event
+  - filters:
+      type:
+      - settings-event
+    op: Create
+    uri: /server/app_installation_event
+  - filters:
+      type:
+      - system-upgrade-event
+    op: Create
+    uri: /server/system_upgrade_event
+  dataType: event
+  deployment: edge-desktop
+  description: desktop event watcher
+  endpoint: edge-desktop.{{ .Release.Namespace }}
+  group: message-disptahcer.system-server
+  kind: watcher
+  namespace: {{ .Release.Namespace }}
+  version: v1
+status:
+  state: active
+
+---
+apiVersion: sys.bytetrade.io/v1alpha1
+kind: ProviderRegistry
+metadata:
+  name: intent-api
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  dataType: legacy_api
+  deployment: edge-desktop
+  description: edge-desktop legacy api
+  endpoint: edge-desktop.{{ .Release.Namespace }}
+  group: api.intent
+  kind: provider
+  namespace: {{ .Release.Namespace }}
+  version: v1
+  opApis:
+  - name: POST
+    uri: /server/intent/send
+status:
+  state: active
+
+---
+apiVersion: sys.bytetrade.io/v1alpha1
+kind: ProviderRegistry
+metadata:
+  name: intent-api-v2
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  dataType: legacy_api
+  deployment: edge-desktop
+  description: edge-desktop legacy api
+  endpoint: edge-desktop.{{ .Release.Namespace }}
+  group: api.intent
+  kind: provider
+  namespace: {{ .Release.Namespace }}
+  version: v2
+  opApis:
+    - name: POST
+      uri: /server/intent/send
+status:
+  state: active
+
+---
+apiVersion: sys.bytetrade.io/v1alpha1
+kind: ProviderRegistry
+metadata:
+  name: destktop-ai-provider
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  dataType: ai_message
+  deployment: edge-desktop
+  description: search ai callback
+  endpoint: edge-desktop.{{ .Release.Namespace }}
+  group: service.desktop
+  kind: provider
+  namespace: {{ .Release.Namespace }}
+  opApis:
+  - name: AIMessage
+    uri: /server/ai_message
+  version: v1
+status:
+  state: active
+
+---
+apiVersion: sys.bytetrade.io/v1alpha1
+kind: ProviderRegistry
+metadata:
+  name: desktop-notification
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  dataType: notification
+  deployment: edge-desktop
+  description: send notification to desktop client
+  endpoint: edge-desktop.{{ .Release.Namespace }}
+  group: service.desktop
+  kind: provider
+  namespace: {{ .Release.Namespace }}
+  opApis:
+  - name: Create
+    uri: /notification/create
+  - name: Query
+    uri: /notification/query
+  version: v1
+status:
+  state: active
+
+---
+apiVersion: sys.bytetrade.io/v1alpha1
+kind: ApplicationPermission
+metadata:
+  name: desktop
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  app: desktop
+  appid: desktop
+  key: {{ .Values.os.desktop.appKey }}
+  secret: {{ .Values.os.desktop.appSecret }}
+  permissions:
+  - dataType: files
+    group: service.files
+    ops:
+    - Query
+    version: v1
+  - dataType: datastore
+    group: service.bfl
+    ops:
+    - GetKey
+    - GetKeyPrefix
+    - SetKey
+    - DeleteKey
+    version: v1
+  - dataType: app
+    group: service.bfl
+    ops:
+    - UserApps
+    version: v1
+  - dataType: app
+    group: service.appstore
+    ops:
+    - UninstallDevApp
+    version: v1
+status:
+  state: active
+
+---
+apiVersion: sys.bytetrade.io/v1alpha1
+kind: ProviderRegistry
+metadata:
+  name: desktop-config
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  dataType: config
+  deployment: edge-desktop
+  description: Set Desktop Config
+  endpoint: edge-desktop.{{ .Release.Namespace }}
+  group: service.desktop
+  kind: provider
+  namespace: {{ .Release.Namespace }}
+  opApis:
+  - name: Update
+    uri: /server/updateDesktopConfig
+  version: v1
+status:
+  state: active
+
+---
+apiVersion: v1
+data:
+  envoy.yaml: |
+    admin:
+      access_log_path: "/dev/stdout"
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 15000
+    static_resources:
+      listeners:
+      - name: listener_0
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 15003
+        listener_filters:
+          - name: envoy.filters.listener.original_dst
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
+        filter_chains:
+          - filters:
+              - name: envoy.filters.network.http_connection_manager
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                  stat_prefix: desktop_http
+                  upgrade_configs:
+                  - upgrade_type: websocket      
+                  - upgrade_type: tailscale-control-protocol            
+                  skip_xff_append: false
+                  max_request_headers_kb: 500
+                  codec_type: AUTO
+                  route_config:
+                    name: local_route
+                    virtual_hosts:
+                      - name: service
+                        domains: ["*"]
+                        routes:
+                          - match:
+                              prefix: "/"
+                            route:
+                              cluster: original_dst
+                              timeout: 180s
+                  http_protocol_options:
+                    accept_http_10: true
+                  http_filters:
+                  - name: envoy.filters.http.ext_authz
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                      http_service:
+                        path_prefix: '/api/verify/'
+                        server_uri:
+                          uri: authelia-backend.os-system:9091
+                          cluster: authelia
+                          timeout: 2s
+                        authorization_request:
+                          allowed_headers:
+                            patterns:
+                              - exact: accept
+                              - exact: cookie
+                              - exact: proxy-authorization
+                              - prefix: x-unauth-
+                              - exact: x-authorization
+                              - exact: x-bfl-user
+                              - exact: x-real-ip
+                              - exact: terminus-nonce
+                          headers_to_add:
+                            - key: X-Forwarded-Method
+                              value: '%REQ(:METHOD)%'
+                            - key: X-Forwarded-Proto
+                              value: '%REQ(:SCHEME)%'
+                            - key: X-Forwarded-Host
+                              value: '%REQ(:AUTHORITY)%'
+                            - key: X-Forwarded-Uri
+                              value: '%REQ(:PATH)%'
+                            - key: X-Forwarded-For
+                              value: '%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%'
+                        authorization_response:
+                          allowed_upstream_headers:
+                            patterns:
+                              - exact: authorization
+                              - exact: proxy-authorization
+                              - prefix: remote-
+                              - prefix: authelia-
+                          allowed_client_headers:
+                            patterns:
+                              - exact: set-cookie
+                          allowed_client_headers_on_success:
+                            patterns:
+                              - exact: set-cookie
+                      failure_mode_allow: false                      
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      - name: listener_image
+        address:
+          socket_address:
+            address: 127.0.0.1
+            port_value: 15080
+        filter_chains:
+          - filters:
+              - name: envoy.filters.network.http_connection_manager
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                  stat_prefix: tapr_http
+                  http_protocol_options:
+                    accept_http_10: true
+                  upgrade_configs:
+                  - upgrade_type: websocket                  
+                  skip_xff_append: false
+                  codec_type: AUTO
+                  route_config:
+                    name: local_route
+                    virtual_hosts:
+                      - name: service
+                        domains: ["*"]
+                        routes:
+                          - match:
+                              prefix: "/images/upload"
+                            route:
+                              cluster: images
+                  http_protocol_options:
+                    accept_http_10: true
+                  http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+        
+        
+      clusters:
+      - name: original_dst
+        connect_timeout: 120s
+        type: ORIGINAL_DST
+        lb_policy: CLUSTER_PROVIDED
+        common_http_protocol_options:
+          idle_timeout: 10s
+      - name: authelia
+        connect_timeout: 2s
+        type: LOGICAL_DNS
+        dns_lookup_family: V4_ONLY
+        dns_refresh_rate: 600s
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: authelia
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: authelia-backend.os-system
+                        port_value: 9091
+      - name: images
+        connect_timeout: 5s
+        type: LOGICAL_DNS
+        dns_lookup_family: V4_ONLY
+        dns_refresh_rate: 600s
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: images
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: tapr-images-svc.user-system-{{ .Values.bfl.username }}
+                        port_value: 8080
+kind: ConfigMap
+metadata:
+  name: sidecar-configs
+  namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: v1
+data:
+  envoy.yaml: |
+    admin:
+      access_log_path: "/dev/stdout"
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 15000
+    static_resources:
+      listeners:
+      - name: listener_0
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 15003
+        listener_filters:
+          - name: envoy.filters.listener.original_dst
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
+        filter_chains:
+          - filters:
+              - name: envoy.filters.network.http_connection_manager
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                  stat_prefix: desktop_http
+                  upgrade_configs:
+                  - upgrade_type: websocket      
+                  - upgrade_type: tailscale-control-protocol            
+                  skip_xff_append: false
+                  max_request_headers_kb: 500
+                  codec_type: AUTO
+                  route_config:
+                    name: local_route
+                    virtual_hosts:
+                      - name: service
+                        domains: ["*"]
+                        routes:
+                          - match:
+                              prefix: "/ws"
+                            route:
+                              cluster: ws_original_dst
+                          - match:
+                              prefix: "/"
+                            route:
+                              cluster: original_dst
+                              timeout: 180s
+                  http_protocol_options:
+                    accept_http_10: true
+                  http_filters:
+                  - name: envoy.filters.http.ext_authz
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                      http_service:
+                        path_prefix: '/api/verify/'
+                        server_uri:
+                          uri: authelia-backend.os-system:9091
+                          cluster: authelia
+                          timeout: 2s
+                        authorization_request:
+                          allowed_headers:
+                            patterns:
+                              - exact: accept
+                              - exact: cookie
+                              - exact: proxy-authorization
+                              - prefix: x-unauth-
+                              - exact: x-authorization
+                              - exact: x-bfl-user
+                              - exact: x-real-ip
+                              - exact: terminus-nonce
+                          headers_to_add:
+                            - key: X-Forwarded-Method
+                              value: '%REQ(:METHOD)%'
+                            - key: X-Forwarded-Proto
+                              value: '%REQ(:SCHEME)%'
+                            - key: X-Forwarded-Host
+                              value: '%REQ(:AUTHORITY)%'
+                            - key: X-Forwarded-Uri
+                              value: '%REQ(:PATH)%'
+                            - key: X-Forwarded-For
+                              value: '%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%'
+                        authorization_response:
+                          allowed_upstream_headers:
+                            patterns:
+                              - exact: authorization
+                              - exact: proxy-authorization
+                              - prefix: remote-
+                              - prefix: authelia-
+                          allowed_client_headers:
+                            patterns:
+                              - exact: set-cookie
+                          allowed_client_headers_on_success:
+                            patterns:
+                              - exact: set-cookie
+                      failure_mode_allow: false                      
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      - name: listener_image
+        address:
+          socket_address:
+            address: 127.0.0.1
+            port_value: 15080
+        filter_chains:
+          - filters:
+              - name: envoy.filters.network.http_connection_manager
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                  stat_prefix: tapr_http
+                  http_protocol_options:
+                    accept_http_10: true
+                  upgrade_configs:
+                  - upgrade_type: websocket                  
+                  skip_xff_append: false
+                  codec_type: AUTO
+                  route_config:
+                    name: local_route
+                    virtual_hosts:
+                      - name: service
+                        domains: ["*"]
+                        routes:
+                          - match:
+                              prefix: "/images/upload"
+                            route:
+                              cluster: images
+                  http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+        
+        
+      clusters:
+      - name: original_dst
+        connect_timeout: 5000s
+        type: ORIGINAL_DST
+        lb_policy: CLUSTER_PROVIDED
+        common_http_protocol_options:
+          idle_timeout: 10s
+      - name: ws_original_dst
+        connect_timeout: 5000s
+        type: LOGICAL_DNS
+        dns_lookup_family: V4_ONLY
+        dns_refresh_rate: 600s
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: ws_original_dst
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: localhost
+                        port_value: 40010
+      - name: authelia
+        connect_timeout: 2s
+        type: LOGICAL_DNS
+        dns_lookup_family: V4_ONLY
+        dns_refresh_rate: 600s
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: authelia
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: authelia-backend.os-system
+                        port_value: 9091
+      - name: images
+        connect_timeout: 5s
+        type: LOGICAL_DNS
+        dns_lookup_family: V4_ONLY
+        dns_refresh_rate: 600s
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: images
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: tapr-images-svc.user-system-{{ .Values.bfl.username }}
+                        port_value: 8080
+kind: ConfigMap
+metadata:
+  name: sidecar-ws-configs
+  namespace: {{ .Release.Namespace }}
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -2662,7 +3275,7 @@ data:
     }
   desktop.conf: |-
     upstream DesktopSVCServer {
-      server edge-desktop-svc:3010;
+      server 127.0.0.1:3010;
     }
     
     server {
