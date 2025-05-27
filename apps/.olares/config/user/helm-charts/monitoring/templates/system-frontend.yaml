@@ -730,10 +730,6 @@ spec:
           hostPath:
             type: Directory
             path: '{{ .Values.userspace.appCache}}'
-        - name: uploads-temp
-          hostPath:
-            type: DirectoryOrCreate
-            path: '{{ .Values.userspace.appCache }}/files/uploadstemp'
             
         - name: system-frontend-nginx-config
           configMap:
