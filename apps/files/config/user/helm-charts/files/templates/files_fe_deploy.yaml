@@ -742,6 +742,13 @@ spec:
             perm:
               - pub
               - sub
+      - appName: user-files
+        appNamespace: "user.{{ .Values.bfl.username }}"
+        subjects:
+          - name: files
+            perm:
+              - pub
+              - sub
     user: user-system-{{ .Values.bfl.username }}-files-frontend
 
 ---

@@ -64,7 +64,14 @@ spec:
         secretKeyRef:
           key: nats_password
           name: notifications-secrets
-    refs: []   # TODO: refs to notifications-proxy's subject
+    refs:
+      - appName: user-notifications
+        appNamespace: user
+        subjects:
+          - name: "*"
+            perm:
+              - pub
+              - sub
     subjects:
       - export:
           - appName: notifications-proxy
@@ -169,12 +176,12 @@ spec:
         - name: NATS_PORT
           value: "4222"
         - name: NATS_USERNAME
-          value: os-system-notifications
+          value: admin
         - name: NATS_PASSWORD
           valueFrom:
             secretKeyRef:
               key: nats_password
-              name: notifications-secrets
+              name: nats-secrets
         - name: NATS_SUBJECT
           value: "terminus.{{ .Release.Namespace }}.system.notification"
         - name: NATS_SUBJECT_SYSTEM_USERS
