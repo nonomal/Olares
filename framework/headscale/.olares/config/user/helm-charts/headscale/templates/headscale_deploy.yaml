@@ -280,8 +280,6 @@ spec:
             fieldRef:
               fieldPath: status.hostIP
         {{- if eq $role "platform-admin" }}
-        - name: USER_INDEX
-          value: "0"
         - name: TS_DEBUG_FIREWALL_MODE
           value: nftables
         {{- end }}
@@ -290,7 +288,10 @@ spec:
         - name: TS_STATE_DIR
           value: "/var/lib/tailscale/"
         - name: TS_TAILSCALED_EXTRA_ARGS
-          value: "--no-logs-no-support  --verbose=1 --tun=tailscale0$(USER_INDEX)"
+          value: >-
+            --no-logs-no-support
+            --verbose=1
+            --tun=tailscale0{{ if ne $role "platform-admin" }}$(USER_INDEX){{ end }}
         - name: TS_ROUTES
           value: $(COREDNS_SVC)/32
         - name: TS_EXTRA_ARGS
