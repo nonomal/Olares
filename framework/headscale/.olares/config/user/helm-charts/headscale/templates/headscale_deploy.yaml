@@ -292,7 +292,7 @@ spec:
         - name: TS_TAILSCALED_EXTRA_ARGS
           value: "--no-logs-no-support  --verbose=1 --tun=tailscale0$(USER_INDEX)"
         - name: TS_ROUTES
-          value: $(NODE_IP)/32
+          value: $(COREDNS_SVC)/32
         - name: TS_EXTRA_ARGS
           value: >-
             --login-server http://headscale-server-svc:8080
