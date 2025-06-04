@@ -610,22 +610,8 @@ spec:
                 secretKeyRef:
                   key: nats_password
                   name: user-service-nats-secret
-            - name: NATS_SUBJECT_USER_FILES
-              value: terminus.user.files.{{ .Values.bfl.username}}
-            - name: NATS_SUBJECT_USER_NOTIFICATION
-              value: terminus.user.notification.{{ .Values.bfl.username}}
-            - name: NATS_SUBJECT_USER_SEARCH
-              value: terminus.user.search.{{ .Values.bfl.username}}
-            - name: NATS_SUBJECT_USER_SEAHUB
-              value: terminus.user.seahub.{{ .Values.bfl.username}}
-            - name: NATS_SUBJECT_USER_VAULT
-              value: terminus.user.vault.{{ .Values.bfl.username}}
-            - name: NATS_SUBJECT_USER_APPLICATION
-              value: terminus.user.application.{{ .Values.bfl.username}}
-            - name: NATS_SUBJECT_USER_KNOWLEDGE
-              value: terminus.user.knowledge.{{ .Values.bfl.username}}
-            - name: NATS_SUBJECT_USER_MARKET
-              value: terminus.user.market.{{ .Values.bfl.username}}
+            - name: NATS_SUBJECT_USER_APPS
+              value: terminus.user.*.{{ .Values.bfl.username}}
         - name: terminus-ws-sidecar
           image: 'beclab/ws-gateway:v1.0.5'
           imagePullPolicy: IfNotPresent
