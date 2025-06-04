@@ -622,6 +622,10 @@ spec:
               value: terminus.user.vault.{{ .Values.bfl.username}}
             - name: NATS_SUBJECT_USER_APPLICATION
               value: terminus.user.application.{{ .Values.bfl.username}}
+            - name: NATS_SUBJECT_USER_KNOWLEDGE
+              value: terminus.user.knowledge.{{ .Values.bfl.username}}
+            - name: NATS_SUBJECT_USER_MARKET
+              value: terminus.user.market.{{ .Values.bfl.username}}
         - name: terminus-ws-sidecar
           image: 'beclab/ws-gateway:v1.0.5'
           imagePullPolicy: IfNotPresent
@@ -3458,4 +3462,21 @@ spec:
         permission:
           sub: allow
           pub: allow
+      - export:
+          - appName: knowledge
+            sub: allow
+            pub: allow
+        name: "knowledge.*"
+        permission:
+          sub: allow
+          pub: allow
+      - export:
+          - appName: market-backend
+            sub: allow
+            pub: allow
+        name: "market.*"
+        permission:
+          sub: allow
+          pub: allow
+
     user: user-service-{{ .Values.bfl.username }}

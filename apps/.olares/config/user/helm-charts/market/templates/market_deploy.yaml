@@ -343,4 +343,11 @@ spec:
             perm:
               - pub
               - sub
+      - appName: user-service
+        appNamespace: user
+        subjects:
+          - name: "market.*"
+            perm:
+              - pub
+              - sub
     user: market-backend-{{ .Values.bfl.username}}
