@@ -134,38 +134,6 @@ func (t *PatchTask) Execute(runtime connector.Runtime) error {
 	return nil
 }
 
-type SocatTask struct {
-	common.KubeAction
-	manifest.ManifestAction
-}
-
-func (t *SocatTask) Execute(runtime connector.Runtime) error {
-	filePath, fileName, err := binaries.GetSocat(t.BaseDir, t.Manifest)
-	if err != nil {
-		logger.Errorf("failed to download socat: %v", err)
-		return err
-	}
-	f := path.Join(filePath, fileName)
-	if _, err := runtime.GetRunner().SudoCmd(fmt.Sprintf("tar xzvf %s -C %s", f, filePath), false, false); err != nil {
-		logger.Errorf("failed to extract %s %v", f, err)
-		return err
-	}
-
-	tp := path.Join(filePath, fmt.Sprintf("socat-%s", kubekeyapiv1alpha2.DefaultSocatVersion))
-	if err := util.ChangeDir(tp); err == nil {
-		if _, err := runtime.GetRunner().SudoCmd("./configure --prefix=/usr && make -j4 && make install && strip socat", false, false); err != nil {
-			logger.Errorf("failed to install socat %v", err)
-			return err
-		}
-	}
-	if err := util.ChangeDir(runtime.GetBaseDir()); err != nil {
-		logger.Errorf("failed to change dir %v", err)
-		return err
-	}
-
-	return nil
-}
-
 type ConntrackTask struct {
 	common.KubeAction
 	manifest.ManifestAction
