@@ -37,10 +37,9 @@ func (k *StatusModule) Init() {
 	k.PipelineCache.GetOrSet(common.ClusterStatus, cluster)
 
 	clusterStatus := &task.RemoteTask{
-		Name:  "GetClusterStatus",
-		Desc:  "Get kubernetes cluster status",
-		Hosts: k.Runtime.GetHostsByRole(common.Master),
-		//Prepare:  new(NoClusterInfo),
+		Name:     "GetClusterStatus",
+		Desc:     "Get kubernetes cluster status",
+		Hosts:    k.Runtime.GetHostsByRole(common.Master),
 		Action:   new(GetClusterStatus),
 		Parallel: false,
 	}
