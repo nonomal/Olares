@@ -669,6 +669,10 @@ spec:
                   name: user-service-secrets
             - name: DATABASE_URL
               value: postgres://user_service_{{ .Values.bfl.username }}:$(DATABASE_PASSWORD)@citus-master-svc.user-system-{{ .Values.bfl.username }}/user_space_{{ .Values.bfl.username }}_user_service?sslmode=disable
+            - name: NATS_HOST
+              value: nats.user-system-{{ .Values.bfl.username }}
+            - name: NATS_PORT
+              value: '4222'
             - name: NATS_USERNAME_USERSERVICE
               value: user-service-{{ .Values.bfl.username }}
             - name: NATS_PASSWORD_USERSESRVICE
