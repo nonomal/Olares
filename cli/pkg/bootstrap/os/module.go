@@ -196,47 +196,6 @@ func (c *ConfigureOSModule) Init() {
 	}
 }
 
-type ClearNodeOSModule struct {
-	common.KubeModule
-}
-
-func (c *ClearNodeOSModule) Init() {
-	c.Name = "ClearNodeOSModule"
-
-	resetNetworkConfig := &task.RemoteTask{
-		Name:     "ResetNetworkConfig",
-		Desc:     "Reset os network config",
-		Hosts:    c.Runtime.GetHostsByRole(common.Worker),
-		Prepare:  new(DeleteNode),
-		Action:   new(ResetNetworkConfig),
-		Parallel: true,
-	}
-
-	removeFiles := &task.RemoteTask{
-		Name:     "RemoveFiles",
-		Desc:     "Remove node files",
-		Hosts:    c.Runtime.GetHostsByRole(common.Worker),
-		Prepare:  new(DeleteNode),
-		Action:   new(RemoveNodeFiles),
-		Parallel: true,
-	}
-
-	daemonReload := &task.RemoteTask{
-		Name:     "DaemonReload",
-		Desc:     "Systemd daemon reload",
-		Hosts:    c.Runtime.GetHostsByRole(common.Worker),
-		Prepare:  new(DeleteNode),
-		Action:   new(DaemonReload),
-		Parallel: true,
-	}
-
-	c.Tasks = []task.Interface{
-		resetNetworkConfig,
-		removeFiles,
-		daemonReload,
-	}
-}
-
 type ClearOSEnvironmentModule struct {
 	common.KubeModule
 }
