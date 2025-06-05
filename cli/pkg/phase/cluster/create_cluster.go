@@ -22,7 +22,6 @@ import (
 	"bytetrade.io/web3os/installer/pkg/kubesphere"
 	ksplugins "bytetrade.io/web3os/installer/pkg/kubesphere/plugins"
 	"bytetrade.io/web3os/installer/pkg/manifest"
-	"bytetrade.io/web3os/installer/pkg/plugins"
 	"bytetrade.io/web3os/installer/pkg/plugins/dns"
 	"bytetrade.io/web3os/installer/pkg/plugins/network"
 	"bytetrade.io/web3os/installer/pkg/plugins/storage"
@@ -158,7 +157,6 @@ func NewCreateClusterPhase(runtime *common.KubeRuntime, manifestMap manifest.Ins
 		&certs.AutoRenewCertsModule{Skip: !runtime.Cluster.Kubernetes.EnableAutoRenewCerts()},
 		&kubernetes.SecurityEnhancementModule{Skip: !runtime.Arg.SecurityEnhancement},
 		&kubernetes.SaveKubeConfigModule{},
-		&plugins.DeployPluginsModule{},
 		&addons.AddonsModule{},
 		&storage.DeployLocalVolumeModule{Skip: skipLocalStorage},
 		&kubesphere.DeployModule{Skip: !runtime.Cluster.KubeSphere.Enabled},
