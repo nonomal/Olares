@@ -939,10 +939,10 @@ spec:
             perm:
               - pub
               - sub
-      - appName: user-files
-        appNamespace: "user.{{ .Values.bfl.username }}"
+      - appName: user-service
+        appNamespace: user
         subjects:
-          - name: files
+          - name: "files.*"
             perm:
               - pub
               - sub
@@ -3414,7 +3414,10 @@ spec:
           - appName: files-server
             sub: allow
             pub: allow
-        name: "*."
+          - appName: files-frontend
+            sub: allow
+            pub: allow
+        name: "files.*"
         permission:
           pub: allow
           sub: allow

@@ -131,6 +131,8 @@ spec:
           value: "{{ $pg_password | b64dec }}"
         - name: PG_DB
           value: user_space_{{ .Values.bfl.username }}_headscale
+        - name: USER_SUBNET
+          value: {{ .Values.tailscaleUserSubnet | default "100.64.0.0/20" }}
         volumeMounts:
         - name: config
           mountPath: /etc/headscale
@@ -300,6 +302,8 @@ spec:
             --netfilter-mode {{ if eq $role "platform-admin" }}on{{ else }}off{{ end }}
         - name: TS_USERSPACE
           value: "false"
+        - name: USER_INDEX
+          value: {{ .Values.tailscaleUserIndex | default "0" | quote }}
         - name: TS_KUBE_SECRET
       volumes:
       - name: config
