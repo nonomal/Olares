@@ -8,6 +8,24 @@
 {{ $pg_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
+{{- $search_server_nats_secret := (lookup "v1" "Secret" $namespace "search-server-nats-secret") -}}
+{{- $nats_password := "" -}}
+{{ if $search_server_nats_secret -}}
+{{ $nats_password = (index $search_server_nats_secret "data" "nats_password") }}
+{{ else -}}
+{{ $nats_password = randAlphaNum 16 | b64enc }}
+{{- end -}}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: search-server-nats-secret
+  namespace: os-system
+type: Opaque
+data:
+  nats_password: {{ $nats_password }}
+
 ---
 apiVersion: v1
 kind: Secret
@@ -178,6 +196,27 @@ spec:
       labels:
         app: search3
     spec:
+      volumes:
+        - name: userspace-dir
+          hostPath:
+            path: /olares/rootfs/userspace
+            type: Directory
+        - name: fb-data
+          hostPath:
+            path: /olares/userdata/Cache/files
+            type: DirectoryOrCreate
+        - name: upload-appdata
+          hostPath:
+            path: /olares/userdata/Cache
+            type: DirectoryOrCreate
+        - name: user-appdata-dir
+          hostPath:
+            path: /olares/userdata/Cache
+            type: Directory
+        - name: shared-lib
+          hostPath:
+            path: /olares/share
+            type: Directory
       initContainers:
       - name: init-container
         image: 'postgres:16.0-alpine3.18'
@@ -199,7 +238,7 @@ spec:
             value: os_system_search3
       containers:
       - name: search3
-        image: beclab/search3:v0.0.30
+        image: beclab/search3:v0.0.34
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
@@ -211,13 +250,38 @@ spec:
         - name: NATS_PORT
           value: "4222"
         - name: NATS_USERNAME
-          value: admin
+          value: os-system-search-server
         - name: NATS_PASSWORD
           valueFrom:
             secretKeyRef:
               key: nats_password
-              name: nats-secrets
-
+              name: search-server-nats-secret
+        - name: NATS_SUBJECT_SYSTEM_SEARCH
+          value: terminus.os-system.system.search
+        - name: NATS_SUBJECT_SYSTEM_USERS
+          value: terminus.os-system.system.users
+        - name: NATS_SUBJECT_SYSTEM_GROUPS
+          value: terminus.os-system.system.groups
+      - name: search3monitor
+        image: beclab/search3monitor:v0.0.34
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DATABASE_URL
+          value: postgres://search3_os_system:{{ $pg_password | b64dec }}@citus-0.citus-headless.os-system:5432/os_system_search3
+        volumeMounts:
+          - name: fb-data
+            mountPath: /appdata
+          - name: userspace-dir
+            mountPath: /data
+          - name: upload-appdata
+            mountPath: /appcache/
+          - name: shared-lib
+            mountPath: /data/External
+            mountPropagation: Bidirectional
+        securityContext:
+          privileged: true
+          runAsUser: 0
+          allowPrivilegeEscalation: true
 ---
 apiVersion: v1
 kind: Service
@@ -233,3 +297,42 @@ spec:
       name: search3
       port: 80
       targetPort: 8080
+
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: search-server-nats
+  namespace: {{ .Release.Namespace }}
+spec:
+  app: search-server
+  appNamespace: {{ .Release.Namespace }}
+  middleware: nats
+  nats:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: nats_password
+          name: search-server-nats-secret
+    refs:
+      - appName: user-service
+        appNamespace: user
+        subjects:
+        - name: "search.*"
+          perm:
+            - pub
+            - sub
+    subjects:
+      - name: system.search
+        permission:
+          pub: allow
+          sub: allow
+      - name: system.users
+        permission:
+          pub: allow
+          sub: deny
+      - name: system.groups
+        permission:
+          pub: allow
+          sub: deny
+    user: os-system-search-server

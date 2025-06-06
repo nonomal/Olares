@@ -1,0 +1,923 @@
+
+{{- $namespace := printf "%s" "os-system" -}}
+{{- $files_secret := (lookup "v1" "Secret" $namespace "files-secrets") -}}
+
+{{- $files_postgres_password := "" -}}
+{{ if $files_secret -}}
+{{ $files_postgres_password = (index $files_secret "data" "files_postgres_password") }}
+{{ else -}}
+{{ $files_postgres_password = randAlphaNum 16 | b64enc }}
+{{- end -}}
+
+{{- $files_redis_password := "" -}}
+{{ if $files_secret -}}
+{{ $files_redis_password = (index $files_secret "data" "files_redis_password") }}
+{{ else -}}
+{{ $files_redis_password = randAlphaNum 16 | b64enc }}
+{{- end -}}
+
+{{- $files_nats_secret := (lookup "v1" "Secret" "os-system" "files-nats-secrets") -}}
+{{- $files_nats_password := "" -}}
+{{ if $files_nats_secret -}}
+{{ $files_nats_password = (index $files_nats_secret "data" "files_nats_password") }}
+{{ else -}}
+{{ $files_nats_password = randAlphaNum 16 | b64enc }}
+{{- end -}}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: files-deployment
+  namespace: os-system
+  labels:
+    app: files
+    applications.app.bytetrade.io/author: bytetrade.io
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: files
+  template:
+    metadata:
+      labels:
+        app: files
+      annotations:
+        instrumentation.opentelemetry.io/inject-nginx: "olares-instrumentation"
+        instrumentation.opentelemetry.io/inject-nginx-container-names: "nginx"    
+        instrumentation.opentelemetry.io/inject-go: "olares-instrumentation"
+        instrumentation.opentelemetry.io/go-container-names: "gateway,files,uploader"    
+        instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/filebrowser"
+    spec:
+      serviceAccount: os-internal
+      serviceAccountName: os-internal
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+      initContainers:
+        - name: init-data
+          image: busybox:1.28
+          securityContext:
+            privileged: true
+            runAsNonRoot: false
+            runAsUser: 0
+          volumeMounts:
+            - name: userspace-dir
+              mountPath: /data
+            - name: fb-data
+              mountPath: /appdata
+            - name: upload-appdata
+              mountPath: /appcache
+          command:
+          - sh
+          - -c
+          - |
+            chown -R 1000:1000 /appdata; chown -R 1000:1000 /appcache; chown -R 1000:1000 /data
+        - name: init-container
+          image: 'postgres:16.0-alpine3.18'
+          command:
+            - sh
+            - '-c'
+            - >-
+              echo -e "Checking for the availability of PostgreSQL Server
+              deployment"; until psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDB1
+              -c "SELECT 1"; do sleep 1; printf "-"; done; sleep 5; echo -e " >>
+              PostgreSQL DB Server has started";
+          env:
+            - name: PGHOST
+              value: citus-headless.os-system
+            - name: PGPORT
+              value: '5432'
+            - name: PGUSER
+              value: files_os_system
+            - name: PGPASSWORD
+              value: {{ $files_postgres_password | b64dec }}
+            - name: PGDB1
+              value: os_system_files
+
+      containers:
+        - name: gateway
+          image: beclab/appdata-gateway:0.1.20
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: FILES_SERVER_TAG
+              value: 'beclab/files-server:v0.2.72'
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+#            - name: OS_SYSTEM_SERVER
+#              value: system-server.os-system
+
+        - name: media-server
+          env:
+          - name: MEDIA_SERVER_DATA_DIR
+            value: /data
+          - name: MEDIA_SERVER_CACHE_DIR
+            value: /appdata
+          - name: SEAFILE_SERVICE
+            value: seafile
+          image: beclab/media-server:v0.1.10
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            privileged: true
+          ports:
+          - containerPort: 9090
+          volumeMounts:
+          - name: userspace-dir
+            mountPath: /data
+          - name: user-appdata-dir
+            mountPath: /appdata
+{{ if .Values.sharedlib }}
+          - name: shared-lib
+            mountPath: /data/External
+            mountPropagation: Bidirectional
+{{ end }}
+
+        - name: files
+          image: beclab/files-server:v0.2.72
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            privileged: true
+          volumeMounts:
+            - name: fb-data
+              mountPath: /appdata
+            - name: userspace-dir
+              mountPath: /data
+#              mountPath: /data/Home
+#            - name: userspace-app-dir
+#              mountPath: /data/Application
+#            - name: watch-dir
+#              mountPath: /data/Home/Documents
+            - name: upload-appdata
+              mountPath: /appcache/
+            
+{{ if .Values.sharedlib }}        
+            - name: shared-lib
+              mountPath: /data/External
+              mountPropagation: Bidirectional
+{{ end }}
+          ports:
+            - containerPort: 8110
+          env:
+{{ if .Values.sharedlib }}        
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: TERMINUSD_HOST
+              value: $(NODE_IP):18088  
+{{ end }}
+            - name: EXTERNAL_PREFIX
+              value: '/External/'
+            - name: ES_ENABLED
+              value: 'False'
+            - name: WATCHER_ENABLED
+              value: 'True'
+            - name: KNOWLEDGE_BASE_ENABLED
+              value: 'False'
+            - name: PHOTOS_ENABLED
+              value: 'True'
+#            - name: BFL_NAME
+#              value: 'os-system'
+            - name: FB_DATABASE
+              value: /appdata/database/filebrowser.db
+            - name: FB_CONFIG
+              value: /appdata/config/settings.json
+            - name: FB_ROOT
+              value: /data
+#            - name: ZINC_USER
+#              value: zincuser-files-os-system
+#            - name: ZINC_PASSWORD
+#              value: {{ $files_postgres_password | b64dec }}
+#            - name: ZINC_HOST
+#              value: zinc-server-svc.os-system
+#            - name: ZINC_PORT
+#              value: "80"
+#            - name: ZINC_INDEX
+#              value: os-system_zinc-files
+            - name: WATCH_DIR
+              value: '/Home'
+            - name: FS_TYPE
+              value: {{ .Values.fs_type }}
+            - name: PATH_PREFIX
+              value: ''
+            - name: ROOT_PREFIX
+              value: /data
+            - name: CACHE_ROOT_PATH
+              value: ''
+            - name: CONTENT_PATH
+              value: /Home/Documents
+            - name: PHOTOS_PATH
+              value: /Home/Pictures
+            - name: REDIS_HOST
+              value: redis-cluster-proxy.os-system
+            - name: REDIS_PORT
+              value: '6379'
+            - name: REDIS_USERNAME
+              value: ''
+            - name: REDIS_PASSWORD
+              value: {{ $files_redis_password | b64dec }}
+            - name: REDIS_USE_SSL
+              value: 'false'
+              # use redis db 0 for redis cache
+            - name: REDIS_DB
+              value: '0'
+            - name: NATS_HOST
+              value: nats
+            - name: NATS_PORT
+              value: '4222'
+            - name: NATS_USERNAME
+              value: os-system-files-server
+            - name: NATS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: files-nats-secrets
+                  key: files_nats_password
+            - name: NATS_SUBJECT
+              value: terminus.os-system.files-notify
+            - name: NATS_SUBJECT_SYSTEM_FILES
+              value: terminus.os-system.system.files
+            - name: NATS_SUBJECT_SYSTEM_USERS
+              value: terminus.os-system.system.users
+            - name: NATS_SUBJECT_SYSTEM_GROUPS
+              value: terminus.os-system.system.groups
+            - name: RESERVED_SPACE
+              value: '1000'
+            - name: OLARES_VERSION
+              value: '1.12'
+            - name: FILE_CACHE_DIR
+              value: '/data/file_cache'
+            - name: PGHOST
+              value: citus-headless.os-system
+            - name: PGPORT
+              value: '5432'
+            - name: PGUSER
+              value: files_os_system
+            - name: PGPASSWORD
+              value: {{ $files_postgres_password | b64dec }}
+            - name: PGDB1
+              value: os_system_files
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CONTAINER_NAME
+              value: files
+            - name: NOTIFY_SERVER
+              value: fsnotify-svc.os-system:5079
+          command:
+            - /filebrowser
+            - --noauth
+        - name: uploader
+          image: beclab/upload:v1.0.14
+          env:
+            - name: UPLOAD_FILE_TYPE
+              value: '*'
+            - name: UPLOAD_LIMITED_SIZE
+              value: '118111600640'
+            - name: RESERVED_SPACE
+              value: '1000'
+          volumeMounts:
+            - name: fb-data
+              mountPath: /appdata
+            - name: userspace-dir
+              mountPath: /data
+            - name: upload-appdata
+              mountPath: /appcache/
+{{ if .Values.sharedlib }}
+            - name: shared-lib
+              mountPath: /data/External
+              mountPropagation: Bidirectional
+{{ end }}
+          resources: { }
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            privileged: true
+        - name: nginx
+          image: 'beclab/docker-nginx-headers-more:ubuntu-v0.1.0'
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: files-nginx-config
+              readOnly: true
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: files-nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+
+      volumes:
+        - name: userspace-dir
+          hostPath:
+            type: Directory
+            path: '{{ .Values.rootPath }}/rootfs/userspace'
+        - name: fb-data
+          hostPath:
+            type: DirectoryOrCreate
+            path: '{{ .Values.rootPath }}/userdata/Cache/files'
+        - name: upload-appdata
+          hostPath:
+            path: '{{ .Values.rootPath }}/userdata/Cache'
+            type: DirectoryOrCreate
+        - name: files-nginx-config
+          configMap:
+            name: files-nginx-config
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+              - key: default.conf
+                path: default.conf
+            defaultMode: 420
+        - name: user-appdata-dir
+          hostPath:
+            path: '{{ .Values.rootPath }}/userdata/Cache'
+            type: Directory
+        
+{{ if .Values.sharedlib }}        
+        - name: shared-lib
+          hostPath:
+            path: "{{ .Values.sharedlib }}"
+            type: Directory
+{{ end }}            
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: files-service
+  namespace: os-system
+spec:
+  selector:
+    app: files
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: files
+      port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-server-service
+  namespace: os-system
+spec:
+  selector:
+    app: files
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: media-server
+      port: 9090
+      targetPort: 9090
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: appdata-backend
+  namespace: os-system
+  labels:
+    app: appdata-backend
+  annotations:
+    velero.io/exclude-from-backup: "true"
+spec:
+  selector:
+    matchLabels:
+      app: appdata-backend
+  template:
+    metadata:
+      labels:
+        app: appdata-backend
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: init-data
+          image: busybox:1.28
+          securityContext:
+            privileged: true
+            runAsNonRoot: false
+            runAsUser: 0
+          volumeMounts:
+          - name: fb-data
+            mountPath: /appdata
+          command:
+          - sh
+          - -c
+          - |
+            chown -R 1000:1000 /appdata
+        - args:
+          - -it
+          - nats.os-system:4222
+          image: owncloudci/wait-for:latest
+          imagePullPolicy: IfNotPresent
+          name: check-nats
+      containers:
+        - name: files
+          image: beclab/files-server:v0.2.72
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: fb-data
+              mountPath: /appdata
+            - name: user-appdata-dir
+              mountPath: /data/AppData
+          ports:
+            - containerPort: 8110
+          env:
+            - name: ROOT_PREFIX
+              value: /data
+#            - name: FB_DATABASE
+#              value: /appdata/database/filebrowser.db
+#            - name: FB_CONFIG
+#              value: /appdata/config/settings.json
+#            - name: FB_ROOT
+#              value: /data
+            - name: OLARES_VERSION
+              value: '1.12'
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          command:
+            - /filebrowser
+            - --noauth
+      volumes:
+        - name: user-appdata-dir
+          hostPath:
+            type: Directory
+            path: '{{ .Values.rootPath }}/userdata/Cache'
+        - name: fb-data
+          hostPath:
+            type: DirectoryOrCreate
+            path: '{{ .Values.rootPath }}/userdata/Cache/files-appdata'
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appdata-backend-headless
+  namespace: os-system
+  labels:
+    app: appdata-backend
+spec:
+  selector:
+    app: appdata-backend
+  clusterIP: None
+  ports:
+    - protocol: TCP
+      port: 8110
+      targetPort: 8110
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: files-secrets
+  namespace: os-system
+type: Opaque
+data:
+  files_postgres_password: {{ $files_postgres_password }}
+  files_redis_password: {{ $files_redis_password }}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: files-nats-secrets
+  namespace: os-system
+data:
+  files_nats_password: {{ $files_nats_password }}
+type: Opaque
+
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: files-pg
+  namespace: os-system
+spec:
+  app: files
+  appNamespace: os-system
+  middleware: postgres
+  postgreSQL:
+    user: files_os_system
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: files_postgres_password
+          name: files-secrets
+    databases:
+      - name: files
+
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: files-redis
+  namespace: os-system
+spec:
+  app: files
+  appNamespace: os-system
+  middleware: redis
+  redis:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: files_redis_password
+          name: files-secrets
+    namespace: files-redis
+
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: files-server-nat
+  namespace: os-system
+spec:
+  app: files-server
+  appNamespace: os-system
+  middleware: nats
+  nats:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: files_nats_password
+          name: files-nats-secrets
+    refs:
+      - appName: user-service
+        appNamespace: user
+        subjects:
+          - name: "files.*"
+            perm:
+              - pub
+              - sub
+    subjects:
+      - export:
+          - appName: files-frontend
+            pub: allow
+            sub: allow
+          - appName: vault
+            pub: allow
+            sub: allow
+        name: files-notify
+        permission:
+          pub: allow
+          sub: allow
+      - name: system.files
+        permission:
+          pub: allow
+          sub: allow
+      - name: system.users
+        permission:
+          pub: deny
+          sub: allow
+      - name: system.groups
+        permission:
+          pub: deny
+          sub: allow
+    user: os-system-files-server
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: files-nginx-config
+  namespace: os-system
+  annotations:
+    kubesphere.io/creator: bytetrade.io
+data:
+  nginx.conf: |-
+    user  nginx;
+    worker_processes  auto;
+
+    error_log  /var/log/nginx/error.log notice;
+    pid        /var/run/nginx.pid;
+
+    events {
+        worker_connections  1024;
+    }
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log  /var/log/nginx/access.log  main;
+
+        sendfile        on;
+        #tcp_nopush     on;
+
+        keepalive_timeout  2700;
+
+        #gzip  on;
+        client_max_body_size 4000M;
+
+        include /etc/nginx/conf.d/*.conf;
+    }
+  default.conf: |-
+    server {
+    	listen 80 default_server;
+
+
+        # 	gzip on;
+        # 	gzip_min_length 1000;
+        # 	gzip_types text/plain text/xml application/javascript text/css;
+
+        # Gzip Settings
+        gzip on;
+    	gzip_disable "msie6";
+    	gzip_min_length 1k;
+        gzip_buffers 16 64k;
+        gzip_http_version 1.1;
+        gzip_comp_level 6;
+        gzip_types *;
+        client_max_body_size 2000M;
+    	root /app;
+
+    	# normal routes
+    	# serve given url and default to index.html if not found
+    	# e.g. /, /user and /foo/bar will return index.html
+    	location / {
+    		try_files $uri $uri/index.html /index.html;
+    		add_header Cache-Control "private,no-cache";
+    		add_header Last-Modified "Oct, 03 Jan 2022 13:46:41 GMT";
+            expires 0;
+    	}
+
+        # location /bfl/ {
+        #     add_header 'Access-Control-Allow-Headers' 'x-api-nonce,x-api-ts,x-api-ver,x-api-source';
+        #     proxy_pass http://bfl;
+        #     proxy_set_header            Host $host;
+        #     proxy_set_header            X-real-ip $remote_addr;
+        #     proxy_set_header            X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        #     add_header X-Frame-Options SAMEORIGIN;
+        # }
+
+    	location /api/resources/AppData {
+            proxy_pass http://127.0.0.1:8080;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            client_body_timeout 600s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /api/raw/AppData {
+            proxy_pass http://127.0.0.1:8080;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /api/raw {
+            proxy_pass http://127.0.0.1:8080;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /api/md5 {
+            proxy_pass http://127.0.0.1:8080;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /api/paste {
+            proxy_pass http://127.0.0.1:8080;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /api/cache {
+            proxy_pass http://127.0.0.1:8080;
+            # rewrite ^/server(.*)$ $1 break;
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            add_header Accept-Ranges bytes;
+            client_body_timeout 1800s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 2700s;
+            proxy_read_timeout 1800s;
+            proxy_send_timeout 1800s;
+        }
+
+        location /provider {
+                proxy_pass http://127.0.0.1:8080;
+                # rewrite ^/server(.*)$ $1 break;
+
+                # Add original-request-related headers
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Host $host;
+
+                client_body_timeout 60s;
+                client_max_body_size 2000M;
+                proxy_request_buffering off;
+                keepalive_timeout 75s;
+                proxy_read_timeout 60s;
+                proxy_send_timeout 60s;
+            }
+
+    	location /api {
+            proxy_pass http://127.0.0.1:8080;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            add_header Accept-Ranges bytes;
+
+            client_body_timeout 600s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /upload {
+            proxy_pass http://127.0.0.1:40030;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            add_header Accept-Ranges bytes;
+
+            client_body_timeout 600s;
+            client_max_body_size 4000M;
+            proxy_request_buffering on;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /videos {
+            proxy_pass http://127.0.0.1:9090;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            add_header Accept-Ranges bytes;
+
+            client_body_timeout 600s;
+            client_max_body_size 4000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /seahub/ {
+            proxy_pass http://seafile/;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            add_header Accept-Ranges bytes;
+
+            client_body_timeout 600s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /seafhttp/ {
+            proxy_pass http://seafile:8082/;
+            # rewrite ^/server(.*)$ $1 break;
+
+            # Add original-request-related headers
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+
+            add_header Accept-Ranges bytes;
+
+            client_body_timeout 600s;
+            client_max_body_size 2000M;
+            proxy_request_buffering off;
+            keepalive_timeout 750s;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+    	# files
+    	# for all routes matching a dot, check for files and return 404 if not found
+    	# e.g. /file.js returns a 404 if not found
+        # 	location ~ \.(?!html) {
+        # 		add_header Cache-Control "public, max-age=2678400";
+        # 		try_files $uri =404;
+        # 	}
+
+        # Set cache for static resources
+         location ~ ^/(assets|js|css|fonts|img)/.*.(js|css|png|jpg|svg|woff|woff2)$
+        {
+          	add_header Cache-Control "public, max-age=2678400";
+        }
+
+        location ~ ^/resources/Home/Pictures/(.*.(png|jpg|svg|gif|jpeg))$
+        {
+          	alias /data/Pictures/$1;
+    	    autoindex off; 
+        }
+
+    }
