@@ -416,7 +416,7 @@ spec:
               name: app-key
               key: random-key
         - name: NATS_HOST
-          value: nats
+          value: nats.os-platform
         - name: NATS_PORT
           value: "4222"
         - name: NATS_USERNAME
