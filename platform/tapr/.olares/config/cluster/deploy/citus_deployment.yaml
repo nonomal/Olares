@@ -47,3 +47,4 @@ spec:
   owner: system
   backupStorage: '{{ $citus_backuppath }}/pg_backup'
   citusImage: beclab/citus:13.0.3-vchord
+  
