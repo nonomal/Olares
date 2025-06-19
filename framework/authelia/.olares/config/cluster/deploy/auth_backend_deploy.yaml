@@ -46,6 +46,52 @@ data:
 
 
 ---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: authelia-pg
+  namespace: {{ .Release.Namespace }}
+spec:
+  app: authelia
+  appNamespace: {{ .Release.Namespace }}
+  middleware: postgres
+  postgreSQL:
+    user: authelia_os_framework
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: pg_password
+          name: authelia-secrets
+    databases:
+      - name: authelia
+
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: authelia-nats
+  namespace: {{ .Release.Namespace }}
+spec:
+  app: authelia
+  appNamespace: os
+  middleware: nats
+  nats:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: nats_password
+          name: authelia-secrets
+    refs:
+    - appName: notifications
+      appNamespace: os
+      subjects:
+      - name: notification
+        perm:
+        - pub
+        - sub
+    user: os-authelia
+
+---
 apiVersion: v1
 data:
   configuration.yaml: |
@@ -129,9 +175,15 @@ data:
 
     storage:
       encryption_key: {{ $encryption_key | b64dec }}
-      local:
-        path: /tmp/db.sqlite3
-
+      postgres:
+        host: citus-headless.os-platform
+        port: 5432
+        database: os_framework_authelia
+        schema: public
+        username: authelia_os_framework
+        password: {{ $pg_password | b64dec }}
+        timeout: 5s
+        
     notifier:
       disable_startup_check: false
       filesystem:
@@ -302,6 +354,27 @@ spec:
       serviceAccount: os-internal
       priorityClassName: "system-cluster-critical"
       initContainers:
+      - name: init-container
+        image: 'postgres:16.0-alpine3.18'
+        command:
+          - sh
+          - '-c'
+          - >-
+            echo -e "Checking for the availability of PostgreSQL Server deployment";
+            until psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDB -c "SELECT 1";
+            do sleep 1; printf "-"; done; sleep 15;
+            echo -e " >> $PGDB exists";
+        env:
+          - name: PGHOST
+            value: citus-headless.os-platform
+          - name: PGPORT
+            value: "5432"
+          - name: PGUSER
+            value: authelia_os_framework
+          - name: PGPASSWORD
+            value: {{ $pg_password | b64dec }}
+          - name: PGDB
+            value: os_framework_authelia
       - name: setsysctl
         image: 'busybox:1.28'
         command:
