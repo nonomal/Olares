@@ -44,52 +44,6 @@ data:
   pg_password: {{ $pg_password }}
   nats_password: {{ $nats_password }}
 
----
-apiVersion: apr.bytetrade.io/v1alpha1
-kind: MiddlewareRequest
-metadata:
-  name: authelia-pg
-  namespace: {{ .Release.Namespace }}
-spec:
-  app: authelia
-  appNamespace: {{ .Release.Namespace }}
-  middleware: postgres
-  postgreSQL:
-    user: authelia_os_framework
-    password:
-      valueFrom:
-        secretKeyRef:
-          key: pg_password
-          name: authelia-secrets
-    databases:
-      - name: authelia
-
-
----
-apiVersion: apr.bytetrade.io/v1alpha1
-kind: MiddlewareRequest
-metadata:
-  name: authelia-nats
-  namespace: {{ .Release.Namespace }}
-spec:
-  app: authelia
-  appNamespace: os
-  middleware: nats
-  nats:
-    password:
-      valueFrom:
-        secretKeyRef:
-          key: nats_password
-          name: authelia-secrets
-    refs:
-    - appName: notifications
-      appNamespace: os
-      subjects:
-      - name: notification
-        perm:
-        - pub
-        - sub
-    user: os-authelia
 
 ---
 apiVersion: v1
@@ -168,29 +122,10 @@ data:
         - domain: 'example.com'
           authelia_url: https://authelia-svc.example.com/
 
-      redis:
-        host: authelia-storage-svc
-        port: 6379
-        # This secret can also be set using the env variables AUTHELIA_SESSION_REDIS_PASSWORD_FILE
-        password: {{ $redis_password | b64dec }}
-        maximum_active_connections: 100
-        minimum_idle_connections: 30
-
     regulation:
       max_retries: 3
       find_time: 120
       ban_time: 300
-
-    storage:
-      encryption_key: {{ $encryption_key | b64dec }}
-      postgres:
-        host: citus-headless.os-platform
-        port: 5432
-        database: os_framework_authelia
-        schema: public
-        username: authelia_os_framework
-        password: {{ $pg_password | b64dec }}
-        timeout: 5s
 
     notifier:
       disable_startup_check: false
@@ -362,33 +297,6 @@ spec:
       serviceAccount: os-internal
       priorityClassName: "system-cluster-critical"
       initContainers:
-      - name: init-container
-        image: 'postgres:16.0-alpine3.18'
-        command:
-          - sh
-          - '-c'
-          - >-
-            echo -e "Checking for the availability of PostgreSQL Server deployment";
-            until psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDB -c "SELECT 1";
-            do sleep 1; printf "-"; done; sleep 15;
-            echo -e " >> $PGDB exists";
-        env:
-          - name: PGHOST
-            value: citus-headless.os-platform
-          - name: PGPORT
-            value: "5432"
-          - name: PGUSER
-            value: authelia_os_framework
-          - name: PGPASSWORD
-            value: {{ $pg_password | b64dec }}
-          - name: PGDB
-            value: os_framework_authelia
-      - args:
-        - -it
-        - authelia-storage-svc:6379,redis.kubesphere-system:6379
-        image: owncloudci/wait-for:latest
-        imagePullPolicy: IfNotPresent
-        name: check-redis
       - name: setsysctl
         image: 'busybox:1.28'
         command:
@@ -403,7 +311,7 @@ spec:
           privileged: true
       containers:      
       - name: authelia
-        image: beclab/auth:0.2.6
+        image: beclab/auth:0.2.7
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9091
@@ -464,107 +372,3 @@ spec:
       name: authelia
       port: 9091
       targetPort: 9091
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: redis
-data:
-  redis.conf: |-
-    dir /srv
-    port 6379
-    bind 0.0.0.0
-    appendonly yes
-    daemonize no
-    #protected-mode no
-    requirepass {{ $redis_password | b64dec }}
-    pidfile /srv/redis-6379.pid
-    maxmemory 200000000
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: authelia-storage
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-  template:
-    metadata:
-      labels:
-        app: redis
-    spec:
-      priorityClassName: "system-cluster-critical"
-      containers:
-      - name: redis
-        image: redis:6.2.13-alpine3.18
-        imagePullPolicy: IfNotPresent
-        command:
-          - "sh"
-          - "-c"
-          - "redis-server /usr/local/redis/redis.conf"
-        ports:
-        - containerPort: 6379
-        resources:
-          requests:
-            cpu: 20m
-            memory: 100Mi
-          limits:
-            cpu: 500m
-            memory: 256Mi
-
-        # FIXME: bugs in raspbian
-        # livenessProbe:
-        #   tcpSocket:
-        #     port: 6379
-        #   initialDelaySeconds: 300
-        #   timeoutSeconds: 1
-        #   periodSeconds: 10
-        #   successThreshold: 1
-        #   failureThreshold: 3
-        # readinessProbe:
-        #   tcpSocket:
-        #     port: 6379
-        #   initialDelaySeconds: 5
-        #   timeoutSeconds: 1
-        #   periodSeconds: 10
-        #   successThreshold: 1
-        #   failureThreshold: 3
-        volumeMounts:
-        - name: config
-          mountPath:  /usr/local/redis/redis.conf
-          subPath: redis.conf
-        - name: data
-          mountPath: /srv
-      volumes:
-      - name: config
-        configMap:
-          name: redis-config
-      - name: data
-        hostPath:
-          type: DirectoryOrCreate
-          path: '{{ $auth_rootpath }}'
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: authelia-storage-svc
-  namespace: {{ .Release.Namespace }}
-spec:
-  ports:
-    - port: 6379
-      protocol: TCP
-      targetPort: 6379
-  selector:
-    app: redis
-  type: ClusterIP
