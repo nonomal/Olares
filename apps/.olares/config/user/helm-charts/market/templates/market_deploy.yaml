@@ -62,7 +62,7 @@ spec:
       initContainers:
         - args:
           - -it
-          - authelia-backend.os-system:9091
+          - authelia-backend.os-framework:9091
           image: owncloudci/wait-for:latest
           imagePullPolicy: IfNotPresent
           name: check-auth
@@ -118,7 +118,7 @@ spec:
           - name: APP_SOTRE_SERVICE_SERVICE_PORT
             value: '443'
           - name: APP_SERVICE_SERVICE_HOST
-            value: app-service.os-system
+            value: app-service.os-framework
           - name: APP_SERVICE_SERVICE_PORT
             value: '6755'
           - name: REPO_URL_PORT
@@ -141,14 +141,16 @@ spec:
           - name: NATS_PORT
             value: '4222'
           - name: NATS_USERNAME
-            value: market-backend-{{ .Values.bfl.username}}
+            value: os-market-backend
           - name: NATS_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: market-backend-nats-secret
                 key: nats_password
-          - name: NATS_SUBJECT_USER_APPLICATION
-            value: terminus.user.application.{{ .Values.bfl.username}}
+          - name: NATS_SUBJECT_APPLICATION
+            value: os.application
+          - name: NATS_SUBJECT_MARKET
+            value: os.market
         volumeMounts:
           - name: opt-data
             mountPath: /opt/app/data
@@ -327,7 +329,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   app: market-backend
-  appNamespace: user
+  appNamespace: os
   middleware: nats
   nats:
     password:
@@ -337,17 +339,17 @@ spec:
           name: market-backend-nats-secret
     refs:
       - appName: user-service
-        appNamespace: user
+        appNamespace: os
         subjects:
           - name: "application.*"
             perm:
               - pub
               - sub
       - appName: user-service
-        appNamespace: user
+        appNamespace: os
         subjects:
           - name: "market.*"
             perm:
               - pub
               - sub
-    user: market-backend-{{ .Values.bfl.username}}
+    user: os-market-backend

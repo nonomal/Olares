@@ -2,7 +2,7 @@
 
 
 {{ $vault_rootpath := printf "%s%s" .Values.rootPath "/rootfs/vault" }}
-{{- $namespace := printf "%s" "os-system" -}}
+{{- $namespace := printf "%s" "os-framework" -}}
 {{- $vault_secret := (lookup "v1" "Secret" $namespace "vault-secrets") -}}
 {{- $pg_password := "" -}}
 {{ if $vault_secret -}}
@@ -24,7 +24,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: vault-server-nats-secret
-  namespace: os-system
+  namespace: {{ .Release.Namespace }}
 type: Opaque
 data:
   nats_password: {{ $nats_password }}
@@ -34,7 +34,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: vault-secrets
-  namespace: os-system
+  namespace: {{ .Release.Namespace }}
 type: Opaque
 data:
   pg_password: {{ $pg_password }}
@@ -44,13 +44,13 @@ apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
 metadata:
   name: vault-pg
-  namespace: os-system
+  namespace: {{ .Release.Namespace }}
 spec:
   app: vault
-  appNamespace: os-system
+  appNamespace: {{ .Release.Namespace }}
   middleware: postgres
   postgreSQL:
-    user: vault_os_system
+    user: vault_os_framework
     password:
       valueFrom:
         secretKeyRef:
@@ -90,15 +90,15 @@ spec:
             echo -e "Checking for the availability of PostgreSQL Server deployment"; until psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDB1 -c "SELECT 1"; do sleep 1; printf "-"; done; sleep 5; echo -e " >> PostgreSQL DB Server has started";
         env:
           - name: PGHOST
-            value: citus-0.citus-headless.os-system
+            value: citus-0.citus-headless.os-platform
           - name: PGPORT
             value: "5432"
           - name: PGUSER
-            value: vault_os_system
+            value: vault_os_framework
           - name: PGPASSWORD
             value: {{ $pg_password | b64dec }}
           - name: PGDB1
-            value: os_system_vault
+            value: os_framework_vault
       containers:
       - name: vault-server
         image: beclab/vault-server:v1.3.71
@@ -115,30 +115,30 @@ spec:
         - name: PL_DATA_BACKEND
           value: postgres
         - name: PL_DATA_POSTGRES_HOST
-          value: citus-0.citus-headless.os-system
+          value: citus-0.citus-headless.os-platform
         - name: PL_DATA_POSTGRES_PORT
           value: "5432"
         - name: PL_DATA_POSTGRES_DATABASE
-          value: os_system_vault
+          value: os_framework_vault
         - name: PL_DATA_POSTGRES_USER
-          value: vault_os_system
+          value: vault_os_framework
         - name: PL_DATA_POSTGRES_PASSWORD
           value: {{ $pg_password | b64dec }}
         - name: PL_ATTACHMENTS_FS_DIR
           value: /padloc/packages/server/attachments
         - name: NATS_HOST
-          value: nats
+          value: nats.os-platform
         - name: NATS_PORT
           value: "4222"
         - name: NATS_USERNAME
-          value: os-system-vault-server
+          value: os-vault-server
         - name: NATS_PASSWORD
           valueFrom:
             secretKeyRef:
               key: nats_password
               name: vault-server-nats-secret
         - name: NATS_SUBJECT_SYSTEM_VAULT
-          value: "terminus.{{ .Release.Namespace }}.system.vault"
+          value: "os.vault"
         volumeMounts:
         - name: vault-data
           mountPath: /padloc/packages/server/data
@@ -153,13 +153,13 @@ spec:
         - name: PL_DATA_BACKEND
           value: postgres
         - name: PL_DATA_POSTGRES_HOST
-          value: citus-0.citus-headless.os-system
+          value: citus-0.citus-headless.os-platform
         - name: PL_DATA_POSTGRES_PORT
           value: "5432"
         - name: PL_DATA_POSTGRES_DATABASE
-          value: os_system_vault
+          value: os_framework_vault
         - name: PL_DATA_POSTGRES_USER
-          value: vault_os_system
+          value: vault_os_framework
         - name: PL_DATA_POSTGRES_PASSWORD
           value: {{ $pg_password | b64dec }}
       volumes:
@@ -210,7 +210,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   app: vault-server
-  appNamespace: {{ .Release.Namespace }}
+  appNamespace: os
   middleware: nats
   nats:
     password:
@@ -221,24 +221,24 @@ spec:
 
     refs:
     - appName: user-service
-      appNamespace: user
+      appNamespace: os
       subjects:
         - name: "vault.*"
           perm:
             - pub
             - sub
     subjects:
-      - name: system.vault
+      - name: vault
         permission:
           pub: allow
           sub: allow
-      - name: system.users
+      - name: users
         permission:
           pub: allow
           sub: deny
-      - name: system.groups
+      - name: groups
         permission:
           pub: allow
           sub: deny
-    user: os-system-vault-server
+    user: os-vault-server
 

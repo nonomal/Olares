@@ -22,10 +22,18 @@ spec:
     spec:
       containers:
       - name: monitoring-server
-        image: beclab/monitoring-server-v1:v0.2.5
+        image: beclab/monitoring-server-v1:v0.3.2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
+        env:
+          - name: NODE_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
+          - name: TERMINUSD_HOST
+            value: $(NODE_IP):18088
+
 
 ---
 apiVersion: v1

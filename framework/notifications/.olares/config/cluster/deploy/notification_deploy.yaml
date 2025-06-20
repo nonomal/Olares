@@ -1,6 +1,6 @@
 
 
-{{- $namespace := printf "%s" "os-system" -}}
+{{- $namespace := printf "%s" "os-framework" -}}
 {{- $notifications_secret := (lookup "v1" "Secret" $namespace "notifications-secrets") -}}
 
 {{- $pg_password := "" -}}
@@ -39,7 +39,7 @@ spec:
   appNamespace: {{ .Release.Namespace }}
   middleware: postgres
   postgreSQL:
-    user: notifications_os_system
+    user: notifications_os_framework
     password:
       valueFrom:
         secretKeyRef:
@@ -56,7 +56,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   app: notifications
-  appNamespace: {{ .Release.Namespace }}
+  appNamespace: os
   middleware: nats
   nats:
     password:
@@ -79,7 +79,7 @@ spec:
           - appName: authelia
             pub: allow
             sub: allow
-        name: system.notification
+        name: notification
         permission:
           pub: allow
           sub: allow
@@ -96,19 +96,19 @@ spec:
           - appName: knowledge
             pub: deny
             sub: allow
-        name: system.users
+        name: users
         permission:
           pub: deny
           sub: allow
-      - name: system.groups
+      - name: groups
         permission:
           pub: deny
           sub: allow
-      - name: system.application
+      - name: application
         permission:
           pub: deny
           sub: allow
-    user: os-system-notification-server
+    user: notification-server
 
 ---
 apiVersion: apps/v1
@@ -142,18 +142,18 @@ spec:
             echo -e "Checking for the availability of PostgreSQL Server deployment"; until psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDB -c "SELECT 1"; do sleep 1; printf "-"; done; sleep 5; echo -e " >> PostgreSQL DB Server has started";
         env:
           - name: PGHOST
-            value: citus-headless.os-system
+            value: citus-headless.os-platform
           - name: PGPORT
             value: "5432"
           - name: PGUSER
-            value: notifications_os_system
+            value: notifications_os_framework
           - name: PGPASSWORD
             valueFrom:
               secretKeyRef:
                 key: pg_password
                 name: notifications-secrets
           - name: PGDB
-            value: os_system_notifications
+            value: os_framework_notifications
       containers:
       - name: notifications-api
         image: beclab/notifications-api:v1.12.6
@@ -171,28 +171,28 @@ spec:
         - name: PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING
           value: '1'
         - name: DATABASE_URL
-          value: postgres://notifications_os_system:$(DATABASE_PASSWORD)@citus-headless.os-system/os_system_notifications?sslmode=disable
+          value: postgres://notifications_os_framework:$(DATABASE_PASSWORD)@citus-headless.os-platform/os_framework_notifications?sslmode=disable
         - name: NATS_HOST
-          value: nats
+          value: nats.os-platform
         - name: NATS_PORT
           value: "4222"
         - name: NATS_USERNAME
-          value: os-system-notification-server
+          value: notification-server
         - name: NATS_PASSWORD
           valueFrom:
             secretKeyRef:
               key: nats_password
               name: notifications-secrets
         - name: NATS_SUBJECT
-          value: "terminus.{{ .Release.Namespace }}.system.notification"
+          value: "os.notification"
         - name: NATS_SUBJECT_SYSTEM_USERS
-          value: "terminus.{{ .Release.Namespace }}.system.users"
+          value: "os.users"
         - name: NATS_SUBJECT_SYSTEM_GROUPS
-          value: "terminus.{{ .Release.Namespace }}.system.groups"
+          value: "os.groups"
         - name: NATS_SUBJECT_SYSTEM_APPLICATION
-          value: "terminus.{{ .Release.Namespace }}.system.application"
+          value: "os.application"
         - name: NATS_SUBJECT_SYSTEM_VAULT
-          value: "terminus.{{ .Release.Namespace }}.system.vault"
+          value: "os.vault"
         livenessProbe:
           tcpSocket:
             port: 3010
