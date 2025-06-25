@@ -634,6 +634,8 @@ spec:
           configMap:
             name: system-frontend-nginx-config
             items:
+              - key: nginx.conf
+                path: nginx.conf
               - key: headscale.conf
                 path: headscale.conf
 
