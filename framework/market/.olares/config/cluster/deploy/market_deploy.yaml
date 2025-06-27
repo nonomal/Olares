@@ -85,7 +85,7 @@ spec:
           name: check-auth      
       containers:
       - name: appstore-backend
-        image: beclab/market-backend:v0.4.2
+        image: beclab/market-backend:v0.4.3
         imagePullPolicy: IfNotPresent
         ports:
           - containerPort: 81
