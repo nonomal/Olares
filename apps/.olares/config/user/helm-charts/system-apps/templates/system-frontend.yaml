@@ -3416,7 +3416,7 @@ data:
     }
   market.conf: |-
     upstream AppstoreBackendServer {
-      server appstore-svc:81;
+      server appstore-svc.os-framework:81;
     }
     server {
         listen 90;
