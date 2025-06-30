@@ -85,6 +85,15 @@ spec:
       labels:
         app: headscale
     spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: l4-bfl-proxy
+            namespaces:
+            - os-network
+            topologyKey: kubernetes.io/hostname
       serviceAccountName: tailscale
       securityContext:
         runAsUser: 1000
