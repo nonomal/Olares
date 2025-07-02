@@ -82,7 +82,7 @@ cat $1|while read image; do
         if [ $code -eq 403 ]; then
             set -ex
             BASE_DIR=$(dirname $(realpath -s $0))
-            python $BASE_DIR/get-manifest.py $image -o $manifest
+            python3 $BASE_DIR/get-manifest.py $image -o $manifest
 
             aws s3 cp $manifest s3://terminus-os-install/$path$manifest --acl=public-read
             echo "upload $name manifest completed"
