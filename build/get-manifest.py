@@ -97,7 +97,7 @@ def get_manifest(registry, repository, reference, token):
     
     headers = {
         # Request multiple manifest types, the registry will return the correct one
-        "Accept": "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json"
+        "Accept": "application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json"
     }
 
     if token:
