@@ -5,6 +5,7 @@ import hashlib
 import os
 import requests
 import sys
+import json
 
 CDN_URL = "https://dc3p1870nn3cj.cloudfront.net"
 
