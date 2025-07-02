@@ -26,12 +26,6 @@ while read line; do
     filename=$(echo "$line"|awk -F"," '{print $1}')
     name=$(echo -n "$filename"|md5sum|awk '{print $1}')
     checksum="$name.checksum.txt"
-    md5sum $name > $checksum
-    backup_file=$(awk '{print $1}' $checksum)
-    if [ x"$backup_file"  == x""  ]; then
-        echo  "invalid checksum"
-        exit 1
-    fi
 
     echo "if exists $filename ... "
     curl -fsSLI https://dc3p1870nn3cj.cloudfront.net/$path$name > /dev/null
@@ -42,6 +36,13 @@ while read line; do
             bash ${BASE_DIR}/download-deps.sh $PLATFORM $line
             if [ $? -ne 0 ]; then
                 exit -1
+            fi
+
+            md5sum $name > $checksum
+            backup_file=$(awk '{print $1}' $checksum)
+            if [ x"$backup_file"  == x""  ]; then
+                echo  "invalid checksum"
+                exit 1
             fi
 
             set -ex
