@@ -23,6 +23,7 @@ pushd $DIST_PATH
 
 rm -rf images
 mv ${BASE_DIR}/../.manifest/installation.manifest .
+mv ${BASE_DIR}/../.manifest/installation.manifest.* .
 mv ${BASE_DIR}/../.manifest images
 
 if [[ "$OSTYPE" == "darwin"* ]]; then

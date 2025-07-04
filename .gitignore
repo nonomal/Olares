@@ -32,3 +32,5 @@ olares-cli-*.tar.gz
 cli/output
 daemon/output
 daemon/bin
+test.go
+update.go

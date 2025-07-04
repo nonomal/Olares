@@ -74,8 +74,8 @@ def main():
                     "type": "component",
                     "path": path,
                     "deps": deps,
-                    "url_amd64": url_amd64,
-                    "checksum_amd64": checksum_amd64,
+                    "url": url_amd64,
+                    "checksum": checksum_amd64,
                     "fileid": fileid
                 }
 
@@ -84,8 +84,8 @@ def main():
                     "type": "component",
                     "path": path,
                     "deps": deps,
-                    "url_arm64": url_arm64,
-                    "checksum_arm64": checksum_arm64,
+                    "url": url_arm64,
+                    "checksum": checksum_arm64,
                     "fileid": fileid
                 }
 
@@ -120,8 +120,8 @@ def main():
                         "type": "image",
                         "path": path,
                         "deps": deps_file,
-                        "url_amd64": url_amd64,
-                        "checksum_amd64": checksum_amd64,
+                        "url": url_amd64,
+                        "checksum": checksum_amd64,
                         "fileid": line,
                         "manifest": image_manifest_amd64
                     }
@@ -130,8 +130,8 @@ def main():
                         "type": "image",
                         "path": path,
                         "deps": deps_file,
-                        "url_arm64": url_arm64,
-                        "checksum_arm64": checksum_arm64,
+                        "url": url_arm64,
+                        "checksum": checksum_arm64,
                         "fileid": line,
                         "manifest": image_manifest_arm64
                     }
