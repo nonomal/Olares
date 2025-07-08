@@ -120,7 +120,7 @@ spec:
             value: /appdata
           - name: SEAFILE_SERVICE
             value: seafile
-          image: beclab/media-server:v0.1.10
+          image: beclab/media-server:v0.1.11
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: true
@@ -132,7 +132,7 @@ spec:
           - name: userspace-dir
             mountPath: /data
           - name: user-appdata-dir
-            mountPath: /appdata
+            mountPath: /appcache
 {{ if .Values.sharedlib }}
           - name: shared-lib
             mountPath: /data/External
