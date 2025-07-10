@@ -78,4 +78,4 @@ done
 
 sed -i "s/#__VERSION__/${VERSION}/g" ${manifest}
 path="${REPO_PATH:-/}"
-sed -i "s|#__REPO_PATH__|${path}|g" $manifest_file
+sed -i "s|#__REPO_PATH__|${path}|g" ${manifest}
