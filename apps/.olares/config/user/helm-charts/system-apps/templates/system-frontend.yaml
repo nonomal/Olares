@@ -42,6 +42,14 @@
 {{ $user_service_pg_password = randAlphaNum 16 | b64enc }}
 {{- end -}}
 
+
+{{- $user_service_redis_password := "" -}}
+{{ if $user_service_secret -}}
+{{ $user_service_redis_password = (index $user_service_secret "data" "redis_password") }}
+{{ else -}}
+{{ $user_service_redis_password = randAlphaNum 16 | b64enc }}
+{{- end -}}
+
 {{- $user_service_nats_secret := (lookup "v1" "Secret" $namespace "user-service-nats-secret") -}}
 {{- $nats_password := "" -}}
 {{ if $user_service_nats_secret -}}
@@ -540,6 +548,15 @@ spec:
               value: os.knowledge.{{ .Values.bfl.username}}
             - name: NATS_SUBJECT_VAULT
               value: os.vault.{{ .Values.bfl.username}}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: redis_password
+                  name: user-service-secrets
+            - name: REDIS_HOST
+              value: redis-cluster-proxy.user-system-guotest334
+            - name: REDIS_PORT
+              value: '6379'
               
         - name: drive-server
           image: beclab/drive:v0.0.72
@@ -1253,6 +1270,7 @@ metadata:
 type: Opaque
 data:
   pg_password: {{ $user_service_pg_password }}
+  redis_password: {{ $user_service_redis_password }}
 ---
 apiVersion: v1
 kind: Secret
@@ -1262,6 +1280,7 @@ metadata:
 type: Opaque
 data:
   pg_password: {{ $user_service_pg_password }}
+  redis_password: {{ $user_service_redis_password }}
 ---
 apiVersion: apr.bytetrade.io/v1alpha1
 kind: MiddlewareRequest
@@ -1281,6 +1300,23 @@ spec:
           name: user-service-secrets
     databases:
     - name: user-service
+---
+apiVersion: apr.bytetrade.io/v1alpha1
+kind: MiddlewareRequest
+metadata:
+  name: user-service-redis
+  namespace: user-system-{{ .Values.bfl.username }}
+spec:
+  app: user-service
+  appNamespace: user-space-{{ .Values.bfl.username }}
+  middleware: redis
+  redis:
+    password:
+      valueFrom:
+        secretKeyRef:
+          key: redis_password
+          name: user-service-secrets
+    namespace: user-service
 ---
 apiVersion: v1
 kind: Service
