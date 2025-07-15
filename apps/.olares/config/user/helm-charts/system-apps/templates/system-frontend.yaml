@@ -539,7 +539,7 @@ spec:
                   key: redis_password
                   name: user-service-secrets
             - name: REDIS_HOST
-              value: redis-cluster-proxy.user-system-guotest334
+              value: redis-cluster-proxy.user-system-{{ .Values.bfl.username }}
             - name: REDIS_PORT
               value: '6379'
               
