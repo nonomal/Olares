@@ -315,7 +315,7 @@ spec:
           value: >-
             --no-logs-no-support
             --verbose=1
-            --tun=tailscale0{{ if ne $(USER_INDEX) "0" }}$(USER_INDEX){{ end }}
+            --tun=tailscale0{{ if and .Values.tailscaleUserIndex (ne .Values.tailscaleUserIndex  "0") }}$(USER_INDEX){{ end }}
         - name: TS_ROUTES
           value: $(COREDNS_SVC)/32
         - name: TS_EXTRA_ARGS
