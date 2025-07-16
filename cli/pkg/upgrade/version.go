@@ -22,8 +22,14 @@ var (
 
 func getReleaseLineOfVersion(v *semver.Version) releaseLine {
 	preRelease := v.Prerelease()
-	if preRelease == "" || strings.HasPrefix(preRelease, "rc") {
+	mainLinePrereleasePrefixes := []string{"alpha", "beta", "rc"}
+	if preRelease == "" {
 		return mainLine
+	}
+	for _, prefix := range mainLinePrereleasePrefixes {
+		if strings.HasPrefix(preRelease, prefix) {
+			return mainLine
+		}
 	}
 	return dailyLine
 }
