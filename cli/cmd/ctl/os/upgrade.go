@@ -3,6 +3,9 @@ package os
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/beclab/Olares/cli/cmd/ctl/options"
 	"github.com/beclab/Olares/cli/pkg/phase"
@@ -10,8 +13,7 @@ import (
 	"github.com/beclab/Olares/cli/pkg/upgrade"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"log"
-	"os"
+	"gopkg.in/yaml.v2"
 )
 
 type UpgradeOsOptions struct {
@@ -84,6 +86,30 @@ func NewCmdUpgradePrecheck() *cobra.Command {
 			if err := pipelines.UpgradePreCheckPipeline(); err != nil {
 				log.Fatalf("error: %v", err)
 			}
+		},
+	}
+	return cmd
+}
+
+func NewCmdMinVersion() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "min-version",
+		Short: "Get the minimum version of Olares that this CLI can upgrade with",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			minVersion, err := upgrade.GetMinVersion()
+			if err != nil {
+				return err
+			}
+
+			// output version.hint
+			versionHint := map[string]interface{}{
+				"upgrade": map[string]interface{}{
+					"minVersion": minVersion,
+				},
+			}
+
+			encoder := yaml.NewEncoder(cmd.OutOrStdout())
+			return encoder.Encode(versionHint)
 		},
 	}
 	return cmd

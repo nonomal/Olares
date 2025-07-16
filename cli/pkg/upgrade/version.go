@@ -2,10 +2,11 @@ package upgrade
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/beclab/Olares/cli/pkg/utils"
 	"github.com/beclab/Olares/cli/version"
-	"strings"
 )
 
 type releaseLine string
@@ -130,6 +131,40 @@ func GetUpgradePathFor(base *semver.Version, target *semver.Version) ([]*semver.
 	}
 
 	return path, nil
+}
+
+func GetMinVersion() (*semver.Version, error) {
+	cliVersion, err := utils.ParseOlaresVersionString(version.VERSION)
+	if err != nil {
+		return nil, fmt.Errorf("invalid olares-cli version :\"%s\"", version.VERSION)
+	}
+
+	var releaseLineUpgraders []breakingUpgrader
+	var maxBreakingVersion *semver.Version
+
+	switch getReleaseLineOfVersion(cliVersion) {
+	case mainLine:
+		releaseLineUpgraders = mainUpgraders
+		maxBreakingVersion, err = semver.NewVersion("1.12.0-00000000") // default to the first breaking version
+		if err != nil {
+			return nil, fmt.Errorf("invalid default breaking version: %v", err)
+		}
+	case dailyLine:
+		releaseLineUpgraders = dailyUpgraders
+		maxBreakingVersion, err = semver.NewVersion("1.12.0-alpha") // default to the first breaking version
+		if err != nil {
+			return nil, fmt.Errorf("invalid default breaking version: %v", err)
+		}
+	}
+
+	for _, u := range releaseLineUpgraders {
+		v := u.Version()
+		if v.LessThan(cliVersion) && v.GreaterThan(maxBreakingVersion) {
+			maxBreakingVersion = v
+		}
+	}
+
+	return maxBreakingVersion, nil
 }
 
 func getUpgraderByVersion(target *semver.Version) upgrader {
