@@ -145,7 +145,7 @@ func GetMinVersion() (*semver.Version, error) {
 	switch getReleaseLineOfVersion(cliVersion) {
 	case mainLine:
 		releaseLineUpgraders = mainUpgraders
-		maxBreakingVersion, err = semver.NewVersion("1.12.0-00000000") // default to the first breaking version
+		maxBreakingVersion, err = semver.NewVersion("1.12.0-0") // default to the first breaking version
 		if err != nil {
 			return nil, fmt.Errorf("invalid default breaking version: %v", err)
 		}
