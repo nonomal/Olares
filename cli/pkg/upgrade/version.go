@@ -38,10 +38,15 @@ func check(base *semver.Version, target *semver.Version) error {
 	if base == nil {
 		return fmt.Errorf("base version is nil")
 	}
+	baseReleaseLine := getReleaseLineOfVersion(base)
 
 	cliVersion, err := utils.ParseOlaresVersionString(version.VERSION)
 	if err != nil {
 		return fmt.Errorf("invalid olares-cli version :\"%s\"", version.VERSION)
+	}
+	cliReleaseLine := getReleaseLineOfVersion(cliVersion)
+	if baseReleaseLine != cliReleaseLine {
+		return fmt.Errorf("incompatible base release line: %s and olares-cli release line: %s", baseReleaseLine, cliReleaseLine)
 	}
 
 	if target != nil {
@@ -50,11 +55,10 @@ func check(base *semver.Version, target *semver.Version) error {
 		}
 
 		targetReleaseLine := getReleaseLineOfVersion(target)
-		baseReleaseLine := getReleaseLineOfVersion(base)
 		if targetReleaseLine != baseReleaseLine {
 			return fmt.Errorf("unable to upgrade to %s on %s release line from %s on %s release line", target, targetReleaseLine, base, baseReleaseLine)
 		}
-		switch baseReleaseLine {
+		switch targetReleaseLine {
 		case mainLine:
 			if !sameMajorLevelVersion(base, target) {
 				return fmt.Errorf("upgrade on %s rlease line can only be performed across same major level version", baseReleaseLine)
