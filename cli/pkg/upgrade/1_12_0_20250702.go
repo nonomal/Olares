@@ -2,13 +2,14 @@ package upgrade
 
 import (
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/beclab/Olares/cli/pkg/common"
 	"github.com/beclab/Olares/cli/pkg/core/connector"
 	"github.com/beclab/Olares/cli/pkg/core/logger"
 	"github.com/beclab/Olares/cli/pkg/core/task"
-	"os"
-	"strings"
 )
 
 type upgrader_1_12_0_20250702 struct {
@@ -20,13 +21,16 @@ func (u upgrader_1_12_0_20250702) Version() *semver.Version {
 }
 
 func (u upgrader_1_12_0_20250702) PrepareForUpgrade() []task.Interface {
-	preTasks := []task.Interface{
-		&task.LocalTask{
-			Name:   "UpdateSysctlReservedPorts",
-			Action: new(updateSysctlReservedPorts),
-		},
+
+	// reuse the prepare tasks from the base upgrader
+	tasks := task.Tasks(u.upgraderBase.PrepareForUpgrade())
+
+	preTask := &task.LocalTask{
+		Name:   "UpdateSysctlReservedPorts",
+		Action: new(updateSysctlReservedPorts),
 	}
-	return append(preTasks, u.upgraderBase.PrepareForUpgrade()...)
+
+	return tasks.InsertBefore("", preTask)
 }
 
 type updateSysctlReservedPorts struct {
