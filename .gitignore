@@ -27,3 +27,8 @@ install-wizard-*.tar.gz
 olares-cli-*.tar.gz
 !ks-console-*.tgz
 .vscode
+
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+node_modules
+.idea/
