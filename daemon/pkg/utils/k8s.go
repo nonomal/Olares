@@ -147,7 +147,6 @@ func IsIpChanged(ctx context.Context, installed bool) (bool, error) {
 		}
 
 		for _, hostIp := range hostIps {
-			klog.Infof("checking host ip %s against internal ip %s", hostIp, ip.IP)
 			if hostIp == ip.IP {
 
 				if !installed {
