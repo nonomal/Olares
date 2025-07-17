@@ -460,8 +460,9 @@ func GetThisNodeName(ctx context.Context, client kubernetes.Interface) (nodeName
 			if foundHost && foundIp {
 				nodeName = node.Name
 
-				if node.Labels["node-role.kubernetes.io/control-plane"] == "true" ||
-					node.Labels["node-role.kubernetes.io/master"] == "true" {
+				if cp, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok && cp != "false" {
+					nodeRole = "master"
+				} else if master, ok := node.Labels["node-role.kubernetes.io/master"]; ok && master != "false" {
 					nodeRole = "master"
 				} else {
 					nodeRole = "worker"
