@@ -122,7 +122,7 @@ func GetHostIp() (addr string, err error) {
 
 	for _, ip := range ips {
 		ipv4 := ip.To4()
-		if ipv4 != nil {
+		if ipv4 != nil && ipv4.IsGlobalUnicast() {
 			addr = ipv4.String()
 			return
 		}
