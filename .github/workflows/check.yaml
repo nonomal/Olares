@@ -3,8 +3,12 @@ name: Lint and Test Charts
 on:
   push:
     branches: [ "main", "release-*" ]
+    paths-ignore:
+      - 'docs/**'    
   pull_request_target:
     branches: [ "main", "release-*" ]
+    paths-ignore:
+      - 'docs/**'    
 
   workflow_dispatch:
 
