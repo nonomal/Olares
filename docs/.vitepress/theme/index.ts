@@ -4,8 +4,6 @@ import "./styles/custom.css";
 import "./styles/index.css";
 import { inBrowser, useRoute, useRouter, useData } from "vitepress";
 import Layout from "./components/Layout.vue";
-import { injectSpeedInsights } from "@vercel/speed-insights";
-import { inject } from "@vercel/analytics";
 import { App } from "vue";
 import Tabs from "./components/tabs.vue";
 import LaunchCard from "./components/LaunchCard.vue";
@@ -16,9 +14,6 @@ import OSTabs from "./components/OStabs.vue";
 import VersionSwitcher from "./components/VersionSwitcher.vue";
 import _ from "lodash";
 
-const LANGUAGE_ZH_PATH = "/zh/";
-const LANGUAGE_ZH_KEY = "zh";
-const LANGUAGE_EN_KEY = "en";
 
 const LANGUAGE_LOCAL_KEY = "language";
 let isMenuChange = false;
@@ -98,17 +93,15 @@ export default {
 
     onMounted(() => {
       toggleMenuStatus();
-      inject();
-      injectSpeedInsights();
       initZoom();
 
-      document
-        .querySelector(".wrapper .container a.title")
-        ?.setAttribute("href", "https://www.olares.com/");
+      // document
+      //   .querySelector(".wrapper .container a.title")
+      //   ?.setAttribute("href", "https://www.olares.com/");
 
-      document
-        .querySelector(".wrapper .container a.title")
-        ?.setAttribute("target", "_blank");
+      // document
+      //   .querySelector(".wrapper .container a.title")
+      //   ?.setAttribute("target", "_blank");
     });
 
     watch(
@@ -125,13 +118,13 @@ export default {
         nextTick(() => {
           initZoom();
 
-          document
-            .querySelector(".wrapper .container a.title")
-            ?.setAttribute("href", "https://www.olares.com/");
+          // document
+          //   .querySelector(".wrapper .container a.title")
+          //   ?.setAttribute("href", "https://www.olares.com/");
 
-          document
-            .querySelector(".wrapper .container a.title")
-            ?.setAttribute("target", "_blank");
+          // document
+          //   .querySelector(".wrapper .container a.title")
+          //   ?.setAttribute("target", "_blank");
         });
       }
     );
