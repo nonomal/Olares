@@ -137,7 +137,7 @@ def get_layer_uncompressed_size_from_registry(registry, repository, layer_digest
         # Request only the last 4 bytes of the gzipped blob
         headers['Range'] = f'bytes={compressed_size - 4}-{compressed_size - 1}'
 
-        response = requests.get(blob_url, headers=headers, timeout=10)
+        response = requests.get(blob_url, headers=headers, timeout=20)
         response.raise_for_status()
 
         # The last 4 bytes of a gzip file contain the uncompressed size (mod 2^32)
