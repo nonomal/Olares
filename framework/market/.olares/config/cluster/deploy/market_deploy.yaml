@@ -93,7 +93,7 @@ spec:
           name: check-appservice
       containers:
       - name: appstore-backend
-        image: beclab/market-backend:v0.4.11
+        image: beclab/market-backend:v0.4.12
         imagePullPolicy: IfNotPresent
         ports:
           - containerPort: 81
@@ -111,7 +111,7 @@ spec:
           - name: APP_SERVICE_SERVICE_PORT                                         
             value: "6755"
           - name: REPO_URL_PORT
-            value: "82/"                                                         
+            value: "82"                                                         
           - name: REPO_URL_HOST                                                    
             value: chart-repo-service                                           
           - name: NATS_HOST                                                        
