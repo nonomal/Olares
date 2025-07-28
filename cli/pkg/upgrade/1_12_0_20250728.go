@@ -8,6 +8,7 @@ import (
 	"github.com/beclab/Olares/cli/pkg/core/connector"
 	"github.com/beclab/Olares/cli/pkg/core/task"
 	"github.com/beclab/Olares/cli/pkg/core/util"
+	"github.com/beclab/Olares/cli/pkg/gpu"
 	k3stemplates "github.com/beclab/Olares/cli/pkg/k3s/templates"
 	"github.com/beclab/Olares/cli/pkg/manifest"
 	"github.com/beclab/Olares/cli/pkg/terminus"
@@ -49,9 +50,20 @@ func (u upgrader_1_12_0_20250728) PrepareForUpgrade() []task.Interface {
 				Name:   "WaitForKubeAPIServerUp",
 				Action: new(precheck.GetKubernetesNodesStatus),
 				Retry:  10,
+				Delay:  10,
 			})
 	}
 	return append(preTasks, u.upgraderBase.PrepareForUpgrade()...)
+}
+
+func (u upgrader_1_12_0_20250728) UpgradeSystemComponents() []task.Interface {
+	preTasks := []task.Interface{
+		&task.LocalTask{
+			Name:   "UpgradeGPUPlugin",
+			Action: new(gpu.InstallPlugin),
+		},
+	}
+	return append(preTasks, u.upgraderBase.UpgradeSystemComponents()...)
 }
 
 type upgradeK3sBinary struct {
@@ -94,7 +106,7 @@ func (u *injectK3sCertExpireTime) Execute(runtime connector.Runtime) error {
 	if strings.Contains(string(content), expireTimeEnv) {
 		return nil
 	}
-	newContent := string(content) + fmt.Sprintf("\n%s=36500", expireTimeEnv)
+	newContent := string(content) + fmt.Sprintf("\n%s=36500\n", expireTimeEnv)
 	err = os.WriteFile(envFile, []byte(newContent), 0644)
 	return err
 }
