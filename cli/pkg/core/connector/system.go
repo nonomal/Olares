@@ -302,6 +302,7 @@ func (s *SystemInfo) Print() {
 	fmt.Printf("fs info, fs: %s, zfsmount: %s\n", s.FsInfo.Type, s.FsInfo.DefaultZfsPrefixName)
 	fmt.Printf("mem info, total: %s, free: %s\n", util.FormatBytes(int64(s.MemoryInfo.Total)), util.FormatBytes(int64(s.MemoryInfo.Free)))
 	fmt.Printf("cgroup info, cpu: %d, mem: %d\n", s.CgroupInfo.CpuEnabled, s.CgroupInfo.MemoryEnabled)
+	fmt.Printf("oic: %t\n", s.IsOIC)
 }
 
 func GetSystemInfo() *SystemInfo {
