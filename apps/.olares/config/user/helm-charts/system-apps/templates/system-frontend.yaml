@@ -1211,6 +1211,8 @@ spec:
       uri: /api/account/all
     - name: POST
       uri: /api/cookie/retrieve
+    - name: POST
+      uri: /api/cookie
 status:
   state: active
 ---
