@@ -42,7 +42,7 @@ OS_INFO=%s
 
 func showAllCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "showAll",
+		Use:   "showall",
 		Short: "Print full os information",
 		Long:  "help for printing os info",
 		Run: func(cmd *cobra.Command, args []string) {
