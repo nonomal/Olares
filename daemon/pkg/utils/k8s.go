@@ -191,9 +191,8 @@ func IsIpChanged(ctx context.Context, installed bool) (bool, error) {
 
 				}
 
-				if nodeRole == "master" && nodeIp != ip.IP {
-					klog.Info("node is master and node ip is not the same as internal ip of interface, ", nodeIp, ", ", hostIp, ", ", ip.IP)
-					return true, nil
+				if nodeRole == "master" && nodeIp == ip.IP {
+					return false, nil
 				}
 
 				// FIXME:(BUG) worker node will not work with this check
@@ -201,8 +200,8 @@ func IsIpChanged(ctx context.Context, installed bool) (bool, error) {
 					return false, nil
 				}
 
-				klog.Info("get node ip, ", nodeIp, ", ", hostIp, ", ", ip.IP)
-
+				klog.Info("node is master and node ip is not the same as internal ip of interface, ", nodeIp, ", ", hostIp, ", ", ip.IP)
+				return true, nil
 			}
 		} // end for host ips
 	} // end for interface ips
