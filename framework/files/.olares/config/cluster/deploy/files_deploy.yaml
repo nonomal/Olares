@@ -127,6 +127,41 @@ spec:
             mountPropagation: Bidirectional
 {{ end }}
 
+        - command:
+          - /rclone
+          - rcd
+          - --rc-addr
+          - :5572
+          - --rc-no-auth
+          - --log-level
+          - DEBUG
+          - --no-check-certificate
+          - --fast-list
+          image: beclab/rclone:v1.73.0
+          imagePullPolicy: IfNotPresent
+          name: rclone
+          ports:
+          - containerPort: 5572
+            protocol: TCP
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            privileged: true
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /data/appcache/
+            name: upload-appdata
+          - mountPath: /appdata
+            name: fb-data
+          - mountPath: /data
+            name: userspace-dir
+          - mountPath: /appcache/
+            name: upload-appdata
+          - mountPath: /data/External
+            mountPropagation: Bidirectional
+            name: shared-lib
         - name: files
           image: beclab/files-server:v0.2.85
           imagePullPolicy: IfNotPresent
