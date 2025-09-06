@@ -22,6 +22,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+type breakingUpgraderBase struct {
+	upgraderBase
+}
+
+func (u breakingUpgraderBase) AddedBreakingChange() bool {
+	return true
+}
+
 // upgraderBase is the general-purpose upgrader implementation
 // for upgrading across versions without any breaking changes.
 // Other implementations of breakingUpgrader,
@@ -29,14 +37,21 @@ import (
 // should use this as a base for injecting and/or rewriting specific tasks as needed
 type upgraderBase struct{}
 
+func (u upgraderBase) AddedBreakingChange() bool {
+	return false
+}
+
 func (u upgraderBase) PrepareForUpgrade() []task.Interface {
-	return []task.Interface{
+	var tasks []task.Interface
+	tasks = append(tasks, upgradeKSCore()...)
+	tasks = append(tasks,
 		&task.LocalTask{
 			Name:   "PrepareUserInfoForUpgrade",
 			Action: new(prepareUserInfoForUpgrade),
 			Retry:  5,
 		},
-	}
+	)
+	return tasks
 }
 
 func (u upgraderBase) ClearAppChartValues() []task.Interface {

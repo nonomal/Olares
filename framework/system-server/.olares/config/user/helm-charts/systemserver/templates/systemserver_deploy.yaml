@@ -10,6 +10,21 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  name: user-system-{{ .Values.bfl.username }}:bytetrade-sys-ops:nonresourceurl
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nonresourceurl-admin
+subjects:
+- kind: ServiceAccount
+  name: bytetrade-sys-ops
+  namespace: user-system-{{ .Values.bfl.username }}
+
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
   name: user-system-{{ .Values.bfl.username }}:bytetrade-sys-ops
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -20,6 +35,20 @@ subjects:
   name: bytetrade-sys-ops
   namespace: user-system-{{ .Values.bfl.username }}
 
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: user-system-{{ .Values.bfl.username }}:bytetrade-sys-ops:rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rbac-proxy
+subjects:
+- kind: ServiceAccount
+  name: bytetrade-sys-ops
+  namespace: user-system-{{ .Values.bfl.username }}
 
 ---
 apiVersion: apps/v1
@@ -53,14 +82,14 @@ spec:
       priorityClassName: "system-cluster-critical"
       containers:
       - name: system-server
-        image: beclab/system-server:0.1.24
+        image: beclab/system-server:0.1.27
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
         command:
         - /system-server
         - -v
-        - "4"
+        - "6"
         env:
         - name: MY_NAMESPACE
           valueFrom:
@@ -122,21 +151,6 @@ spec:
           items:
           - key: envoy.yaml
             path: envoy.yaml
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: system-server
-  namespace: user-system-{{ .Values.bfl.username }}
-spec:
-  type: ClusterIP
-  selector:
-    app: systemserver
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
 
 ---
 apiVersion: v1
